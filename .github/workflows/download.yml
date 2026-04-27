@@ -14,8 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install yt-dlp
-        run: pip install -U yt-dlp
+      - name: Install yt-dlp and deno
+        run: |
+          pip install -U yt-dlp
+          curl -fsSL https://deno.land/install.sh | sh
+          echo "$HOME/.deno/bin" >> $GITHUB_PATH
 
       - name: Download video
         run: |
