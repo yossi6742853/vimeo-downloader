@@ -1,37 +1,58 @@
 name: Download Vimeo Videos
 on:
   workflow_dispatch:
+    inputs:
+      batch:
+        description: 'Batch number (1-12, each batch=20 videos)'
+        required: true
+        default: '1'
 
 jobs:
   download:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install yt-dlp
-        run: pip install yt-dlp
+      - name: Install yt-dlp with impersonation
+        run: |
+          pip install yt-dlp curl_cffi
 
-      - name: Download videos
+      - name: Download videos from chazon-ish pages
         run: |
           mkdir -p videos
-          while IFS= read -r line; do
-            vid_id=$(echo "$line" | jq -r '.vimeo_id')
-            title=$(echo "$line" | jq -r '.title')
-            echo "Downloading: $title ($vid_id)"
-            yt-dlp \
-              --referer "https://chazon-ish.com/" \
-              -f "best[height<=720]" \
-              --merge-output-format mp4 \
-              --no-overwrites \
-              -o "videos/%(title)s [%(id)s].%(ext)s" \
-              "https://player.vimeo.com/video/$vid_id" \
-              || echo "FAILED: $vid_id"
-          done < <(jq -c '.[]' vimeo_ids.json | head -20)
+          BATCH=${{ github.event.inputs.batch }}
+          START=$(( (BATCH - 1) * 20 ))
+
+          echo "Batch $BATCH: videos $START to $((START+19))"
+
+          # Read blocked URLs and process batch
+          idx=0
+          while IFS= read -r url; do
+            if [ $idx -ge $START ] && [ $idx -lt $((START + 20)) ]; then
+              echo ""
+              echo "=== [$((idx+1))] $url ==="
+              yt-dlp \
+                --impersonate "chrome" \
+                --no-overwrites \
+                --merge-output-format mp4 \
+                -f "bv*[height<=720]+ba/b[height<=720]" \
+                -o "videos/%(title)s [%(id)s].%(ext)s" \
+                "$url" \
+                || echo "FAILED: $url"
+            fi
+            idx=$((idx + 1))
+          done < blocked_urls.txt
+
+          echo ""
+          echo "=== Done! ==="
+          ls -lh videos/ 2>/dev/null || echo "No videos downloaded"
 
       - name: Upload to artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: chazon-ish-videos
+          name: chazon-ish-batch-${{ github.event.inputs.batch }}
           path: videos/
           retention-days: 7
+          if-no-files-found: warn
