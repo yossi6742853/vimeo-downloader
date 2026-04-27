@@ -2,8 +2,8 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VideoGrab - הורדת קבצים לדרייב</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VideoGrab v6.0 - הורדת קבצים לדרייב</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#6c5ce7">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
@@ -24,7 +24,8 @@
         .form-control{border-radius:14px;font-size:1.05rem;padding:14px 18px;border:2px solid #e9ecef;transition:all .3s}
         .form-control:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(108,92,231,0.15)}
         .input-group .form-control{border-radius:14px 0 0 14px}
-        .logo-icon{font-size:4rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .logo-icon{font-size:4rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;transition:transform .4s ease;display:inline-block}
+        .logo-icon:hover{transform:rotate(-15deg) scale(1.15)}
         .logo-title{font-size:2.2rem;font-weight:900;background:linear-gradient(135deg,#fff,#ddd);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
         .logo-sub{color:rgba(255,255,255,0.5);font-size:0.95rem}
         .tab-btn{border:none;background:transparent;padding:14px 20px;color:#999;border-bottom:3px solid transparent;font-weight:500;font-size:.95rem;transition:all .3s}
@@ -48,10 +49,56 @@
         .stats-number{font-size:1.8rem;font-weight:900;background:linear-gradient(135deg,#fff,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
         .content-warning{background:linear-gradient(135deg,#fff5f5,#ffe0e0);border:2px solid #e74c3c;border-radius:14px;color:#c0392b}
 
+        /* Tab fade transitions */
+        .tab-pane{opacity:0;transition:opacity .3s ease;display:none}
+        .tab-pane.active-tab{opacity:1;display:block}
+
+        /* Drag & drop overlay */
+        .drop-overlay{position:fixed;inset:0;background:rgba(108,92,231,0.85);z-index:9998;display:none;align-items:center;justify-content:center;flex-direction:column}
+        .drop-overlay.active{display:flex}
+        .drop-overlay i{font-size:5rem;color:#fff;animation:bounce 1s infinite}
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-15px)}}
+
+        /* URL preview */
+        .url-preview{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#f0f0ff;border-radius:10px;margin-top:8px;animation:fadeIn .3s}
+        .url-preview img{width:20px;height:20px;border-radius:4px}
+
+        /* Quick download buttons */
+        .quick-dl-btn{border:1px solid rgba(108,92,231,0.3);border-radius:12px;padding:8px 14px;background:rgba(108,92,231,0.05);transition:all .2s;cursor:pointer;font-size:.85rem}
+        .quick-dl-btn:hover{background:rgba(108,92,231,0.15);border-color:var(--primary);transform:translateY(-1px)}
+
+        /* Skeleton loading */
+        .skeleton{background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:skeleton-loading 1.5s infinite;border-radius:10px}
+        @keyframes skeleton-loading{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        .skeleton-card{height:70px;margin-bottom:10px;border-radius:10px}
+
+        /* Version badge */
+        .version-badge{background:rgba(108,92,231,0.2);color:rgba(255,255,255,0.7);font-size:.7rem;padding:2px 8px;border-radius:8px;font-weight:700}
+
+        /* Keyboard shortcut hints */
+        .kbd-hint{font-size:.65rem;color:#999;background:#f0f0f0;padding:1px 5px;border-radius:4px;border:1px solid #ddd;font-family:monospace;margin-right:4px}
+        body.dark .kbd-hint{background:#3a3a5a;color:#aaa;border-color:#555}
+
+        /* Paste button */
+        .btn-paste{border-radius:0 14px 14px 0;border:2px solid #e9ecef;border-right:none;background:#f8f9ff;transition:all .2s}
+        .btn-paste:hover{background:var(--primary);color:#fff}
+
+        /* Search filter pills */
+        .filter-pill{border:1px solid #ddd;border-radius:20px;padding:4px 12px;font-size:.8rem;cursor:pointer;transition:all .2s;background:transparent;color:#666}
+        .filter-pill.active,.filter-pill:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+        /* Recent searches */
+        .recent-search{cursor:pointer;padding:4px 10px;border-radius:8px;font-size:.85rem;background:#f0f0ff;transition:all .2s;display:inline-block;margin:2px}
+        .recent-search:hover{background:var(--primary);color:#fff}
+
+        /* Tooltip style */
+        [data-bs-toggle="tooltip"]{cursor:pointer}
+
         /* Dark mode */
         body.dark .main-card{background:rgba(30,30,50,0.95);color:#e0e0e0}
         body.dark .main-card::before{background:linear-gradient(90deg,var(--accent),var(--primary),var(--accent))}
         body.dark .form-control{background:#2a2a4a;border-color:#3a3a5a;color:#e0e0e0}
+        body.dark .form-select{background:#2a2a4a;border-color:#3a3a5a;color:#e0e0e0}
         body.dark .tab-btn{color:#888}
         body.dark .tab-btn.active{color:var(--accent)}
         body.dark .video-result{border-color:#3a3a5a;color:#e0e0e0}
@@ -62,10 +109,44 @@
         body.dark .form-text{color:#888}
         body.dark .text-muted{color:#888!important}
         body.dark .modal-content{background:#1e1e32;color:#e0e0e0}
+        body.dark .url-preview{background:#2a2a4a}
+        body.dark .quick-dl-btn{background:rgba(108,92,231,0.15);border-color:#4a4a6a;color:#ccc}
+        body.dark .skeleton{background:linear-gradient(90deg,#2a2a4a 25%,#3a3a5a 50%,#2a2a4a 75%);background-size:200% 100%}
+        body.dark .filter-pill{border-color:#4a4a6a;color:#aaa}
+        body.dark .recent-search{background:#2a2a4a;color:#ccc}
+        body.dark .btn-paste{background:#2a2a4a;border-color:#3a3a5a;color:#ccc}
+        body.dark .drop-overlay{background:rgba(30,30,50,0.9)}
+
+        /* Mobile responsive improvements */
+        @media(max-width:576px){
+            .logo-icon{font-size:2.8rem}
+            .logo-title{font-size:1.6rem}
+            .logo-sub{font-size:.8rem}
+            .stats-number{font-size:1.3rem}
+            .tab-btn{padding:10px 8px;font-size:.78rem}
+            .tab-btn i{display:block;font-size:1.1rem;margin:0 0 2px 0!important}
+            .video-thumb,.video-thumb-placeholder{width:80px;height:50px}
+            .main-card{border-radius:16px}
+            .btn-download{font-size:.95rem;padding:12px}
+            .site-badge{font-size:.7rem;padding:4px 8px}
+            .queue-item .small{font-size:.75rem}
+            .quick-dl-row{flex-wrap:wrap}
+            .kbd-hint{display:none}
+        }
+        @media(max-width:400px){
+            .tab-btn{padding:8px 5px;font-size:.72rem}
+            .container{padding-left:8px;padding-right:8px}
+        }
     </style>
 </head>
 <body>
     <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Drag & Drop overlay -->
+    <div class="drop-overlay" id="dropOverlay">
+        <i class="bi bi-cloud-arrow-down-fill"></i>
+        <h3 class="text-white mt-3 fw-bold">שחרר קישור כאן להורדה</h3>
+    </div>
 
     <!-- PIN Screen -->
     <div id="pinScreen" class="d-flex align-items-center justify-content-center min-vh-100">
@@ -86,7 +167,7 @@
                 <div class="col-lg-9">
                     <div class="text-center mb-4" style="position:relative;z-index:1">
                         <div class="logo-icon"><i class="bi bi-cloud-arrow-down-fill"></i></div>
-                        <div class="logo-title">VideoGrab</div>
+                        <div class="logo-title">VideoGrab <span class="version-badge">v6.0</span></div>
                         <p class="logo-sub">הורד סרטונים, מצגות, תמונות ומסמכים מכל אתר — ישירות ל-Google Drive</p>
                         <div class="mt-2">
                             <span class="site-badge"><i class="bi bi-film me-1"></i>סרטונים</span>
@@ -113,20 +194,32 @@
 
                     <div class="main-card p-0 mb-4">
                         <div class="d-flex border-bottom flex-wrap">
-                            <button class="tab-btn active flex-fill" onclick="switchTab('download')" id="tabBtnDownload"><i class="bi bi-download me-1"></i>הורדה</button>
-                            <button class="tab-btn flex-fill" onclick="switchTab('search')" id="tabBtnSearch"><i class="bi bi-search me-1"></i>חיפוש</button>
-                            <button class="tab-btn flex-fill" onclick="switchTab('queue')" id="tabBtnQueue"><i class="bi bi-list-check me-1"></i>תור<span class="badge bg-danger rounded-pill ms-1 d-none" id="queueBadge">0</span></button>
+                            <button class="tab-btn active flex-fill" onclick="switchTab('download')" id="tabBtnDownload" data-bs-toggle="tooltip" title="Ctrl+D"><i class="bi bi-download me-1"></i>הורדה</button>
+                            <button class="tab-btn flex-fill" onclick="switchTab('search')" id="tabBtnSearch" data-bs-toggle="tooltip" title="Ctrl+K"><i class="bi bi-search me-1"></i>חיפוש</button>
+                            <button class="tab-btn flex-fill" onclick="switchTab('queue')" id="tabBtnQueue" data-bs-toggle="tooltip" title="Ctrl+Q"><i class="bi bi-list-check me-1"></i>תור<span class="badge bg-danger rounded-pill ms-1 d-none" id="queueBadge">0</span></button>
                             <button class="tab-btn flex-fill" onclick="switchTab('favorites')" id="tabBtnFavorites"><i class="bi bi-star me-1"></i>מועדפים</button>
                             <button class="tab-btn flex-fill" onclick="switchTab('drive')" id="tabBtnDrive"><i class="bi bi-folder me-1"></i>דרייב</button>
                             <button class="tab-btn flex-fill" onclick="switchTab('history')" id="tabBtnHistory"><i class="bi bi-clock-history me-1"></i>היסטוריה</button>
                         </div>
 
-                        <div id="tab-download" class="p-4">
+                        <div id="tab-download" class="tab-pane active-tab p-4">
                             <div class="mb-3">
-                                <label class="form-label fw-bold"><i class="bi bi-link-45deg me-1"></i>קישור לסרטון</label>
-                                <input type="url" id="urlInput" class="form-control" placeholder="הדבק קישור כאן..." dir="ltr">
+                                <label class="form-label fw-bold"><i class="bi bi-link-45deg me-1"></i>קישור לסרטון <span class="kbd-hint">Ctrl+V = הדבק + הורד</span></label>
+                                <div class="d-flex">
+                                    <input type="url" id="urlInput" class="form-control" placeholder="הדבק קישור כאן..." dir="ltr" style="border-radius:14px 0 0 14px">
+                                    <button class="btn btn-paste" onclick="pasteFromClipboard()" data-bs-toggle="tooltip" title="הדבק מהלוח"><i class="bi bi-clipboard"></i></button>
+                                </div>
                                 <div class="form-text">סרטונים, מצגות, תמונות, PDF, מסמכים — מכל אתר שהוא</div>
+                                <div id="urlPreview" class="d-none"></div>
                             </div>
+
+                            <!-- Quick download buttons -->
+                            <div class="d-flex gap-2 mb-3 flex-wrap quick-dl-row">
+                                <div class="quick-dl-btn" onclick="openQuickSite('https://www.hidabroot.org')" data-bs-toggle="tooltip" title="הידברות"><i class="bi bi-play-circle me-1"></i>הידברות</div>
+                                <div class="quick-dl-btn" onclick="openQuickSite('https://archive.org')" data-bs-toggle="tooltip" title="Archive.org"><i class="bi bi-archive me-1"></i>Archive.org</div>
+                                <div class="quick-dl-btn" onclick="openQuickSite('https://vimeo.com')" data-bs-toggle="tooltip" title="Vimeo"><i class="bi bi-vimeo me-1"></i>Vimeo</div>
+                            </div>
+
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
                                     <label class="form-label small fw-bold"><i class="bi bi-film me-1"></i>סוג</label>
@@ -145,7 +238,7 @@
                                     </select>
                                 </div>
                             </div>
-                            <button class="btn btn-download text-white w-100" onclick="startDownload(document.getElementById('urlInput').value)">
+                            <button class="btn btn-download text-white w-100" onclick="startDownload(document.getElementById('urlInput').value)" data-bs-toggle="tooltip" title="הורד את הקובץ לדרייב">
                                 <i class="bi bi-cloud-arrow-down me-2"></i>הורד לדרייב
                             </button>
                             <div class="mt-3">
@@ -159,23 +252,37 @@
                             </div>
                         </div>
 
-                        <div id="tab-search" class="p-4 d-none">
-                            <div class="input-group mb-3">
+                        <div id="tab-search" class="tab-pane p-4">
+                            <div class="input-group mb-2">
                                 <input type="text" id="searchInput" class="form-control" placeholder="חפש סרטונים ברשת..." onkeydown="if(event.key==='Enter')searchVideos()">
-                                <button class="btn btn-search text-white px-4" onclick="searchVideos()"><i class="bi bi-search"></i></button>
+                                <button class="btn btn-search text-white px-4" onclick="searchVideos()" data-bs-toggle="tooltip" title="חפש"><i class="bi bi-search"></i></button>
                             </div>
+                            <!-- Source filter pills -->
+                            <div class="d-flex gap-2 mb-2 flex-wrap">
+                                <span class="filter-pill active" data-source="all" onclick="setSearchFilter(this,'all')">הכל</span>
+                                <span class="filter-pill" data-source="Dailymotion" onclick="setSearchFilter(this,'Dailymotion')">Dailymotion</span>
+                                <span class="filter-pill" data-source="Vimeo" onclick="setSearchFilter(this,'Vimeo')">Vimeo</span>
+                                <span class="filter-pill" data-source="הידברות" onclick="setSearchFilter(this,'הידברות')">הידברות</span>
+                                <span class="filter-pill" data-source="Archive.org" onclick="setSearchFilter(this,'Archive.org')">Archive.org</span>
+                            </div>
+                            <!-- Recent searches -->
+                            <div id="recentSearches" class="mb-3 d-none"></div>
                             <div id="searchResults"><div class="text-center py-5 text-muted"><i class="bi bi-search fs-1 d-block mb-2" style="opacity:0.3"></i>חפש סרטונים מ-Dailymotion, Vimeo, הידברות ו-Archive.org</div></div>
                         </div>
 
-                        <div id="tab-queue" class="p-4 d-none">
+                        <div id="tab-queue" class="tab-pane p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0 fw-bold"><i class="bi bi-list-check me-1"></i>תור הורדות</h6>
+                                <button class="btn btn-sm btn-outline-success" onclick="clearCompletedQueue()" data-bs-toggle="tooltip" title="נקה פריטים שהושלמו"><i class="bi bi-check2-all me-1"></i>נקה הושלמו</button>
+                            </div>
                             <div id="queueList"><div class="text-center py-4 text-muted"><i class="bi bi-inbox fs-1 d-block mb-2" style="opacity:0.3"></i>אין הורדות בתור</div></div>
                         </div>
 
                         <!-- Tab: Favorites -->
-                        <div id="tab-favorites" class="p-4 d-none">
+                        <div id="tab-favorites" class="tab-pane p-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h6 class="mb-0 fw-bold"><i class="bi bi-star me-1"></i>אתרים מועדפים</h6>
-                                <button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('addFavArea').classList.toggle('d-none')"><i class="bi bi-plus me-1"></i>הוסף</button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('addFavArea').classList.toggle('d-none')" data-bs-toggle="tooltip" title="הוסף מועדף חדש"><i class="bi bi-plus me-1"></i>הוסף</button>
                             </div>
                             <div id="addFavArea" class="d-none mb-3">
                                 <div class="input-group">
@@ -188,18 +295,21 @@
                         </div>
 
                         <!-- Tab: Drive Browser -->
-                        <div id="tab-drive" class="p-4 d-none">
+                        <div id="tab-drive" class="tab-pane p-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h6 class="mb-0 fw-bold"><i class="bi bi-folder me-1"></i>קבצים בדרייב</h6>
-                                <button class="btn btn-sm btn-outline-primary" onclick="loadDriveFiles()"><i class="bi bi-arrow-clockwise me-1"></i>רענן</button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="loadDriveFiles()" data-bs-toggle="tooltip" title="רענן קבצים"><i class="bi bi-arrow-clockwise me-1"></i>רענן</button>
                             </div>
                             <div id="driveFiles"><div class="text-center py-4 text-muted"><i class="bi bi-folder2-open fs-1 d-block mb-2" style="opacity:0.3"></i>לחץ "רענן" לטעינת קבצים מדרייב</div></div>
                         </div>
 
-                        <div id="tab-history" class="p-4 d-none">
+                        <div id="tab-history" class="tab-pane p-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h6 class="mb-0 fw-bold"><i class="bi bi-clock-history me-1"></i>הורדות אחרונות</h6>
-                                <button class="btn btn-sm btn-outline-danger" onclick="clearHistory()"><i class="bi bi-trash me-1"></i>מחק הכל</button>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="exportHistoryCSV()" data-bs-toggle="tooltip" title="ייצוא היסטוריה כ-CSV"><i class="bi bi-filetype-csv me-1"></i>ייצוא</button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="clearHistory()" data-bs-toggle="tooltip" title="מחק את כל ההיסטוריה"><i class="bi bi-trash me-1"></i>מחק הכל</button>
+                                </div>
                             </div>
                             <div id="historyList"><p class="text-muted text-center">אין הורדות עדיין</p></div>
                         </div>
@@ -210,15 +320,20 @@
                         <div class="small fw-bold mb-2"><i class="bi bi-chat-dots me-1"></i>בקשות שיפור (נבדק כל 10 דקות)</div>
                         <div class="d-flex align-items-center gap-2">
                             <input type="text" id="feedbackInput" class="form-control form-control-sm" placeholder="מה לשפר? מה חסר? מה לא עובד?" onkeydown="if(event.key==='Enter')sendFeedback()">
-                            <button class="btn btn-sm btn-download text-white px-3" onclick="sendFeedback()"><i class="bi bi-send"></i></button>
+                            <button class="btn btn-sm btn-download text-white px-3" onclick="sendFeedback()" data-bs-toggle="tooltip" title="שלח משוב"><i class="bi bi-send"></i></button>
                         </div>
                         <div id="feedbackStatus" class="small text-muted mt-1 d-none"></div>
                     </div>
 
                     <div class="text-center small" style="position:relative;z-index:1">
-                        <p class="text-white-50"><i class="bi bi-shield-check me-1"></i>מסנן תוכן פעיל | <i class="bi bi-folder2 me-1"></i>קבצים מגיעים ל"סרטונים שהורדו" בדרייב</p>
-                        <button class="btn btn-sm text-white-50" onclick="toggleDark()" id="darkBtn"><i class="bi bi-moon me-1"></i>מצב כהה</button>
-                        <button class="btn btn-sm text-white-50" onclick="installPWA()" id="installBtn" style="display:none"><i class="bi bi-download me-1"></i>התקן כאפליקציה</button>
+                        <p class="text-white-50"><i class="bi bi-shield-check me-1"></i>מסנן תוכן פעיל | <i class="bi bi-folder2 me-1"></i>קבצים מגיעים ל"סרטונים שהורדו" בדרייב | <span class="version-badge">v6.0</span></p>
+                        <div class="d-flex justify-content-center gap-2 flex-wrap">
+                            <button class="btn btn-sm text-white-50" onclick="toggleDark()" id="darkBtn" data-bs-toggle="tooltip" title="החלף מצב תצוגה"><i class="bi bi-moon me-1"></i>מצב כהה</button>
+                            <button class="btn btn-sm text-white-50" onclick="installPWA()" id="installBtn" style="display:none" data-bs-toggle="tooltip" title="התקן כאפליקציה"><i class="bi bi-download me-1"></i>התקן כאפליקציה</button>
+                        </div>
+                        <div class="mt-2 text-white-50" style="font-size:.7rem">
+                            <i class="bi bi-keyboard me-1"></i>קיצורים: Ctrl+V=הדבק+הורד | Ctrl+K=חיפוש | Ctrl+Q=תור
+                        </div>
                     </div>
                 </div>
             </div>
@@ -253,13 +368,15 @@
             localStorage.setItem('gh_token', GH_TOKEN);
         }
         let queue = JSON.parse(localStorage.getItem('dl_queue') || '[]');
+        let currentSearchFilter = 'all';
+        let lastSearchResults = [];
 
         // ============================================================
         // CONTENT FILTER - IMMUTABLE - DO NOT MODIFY OR REMOVE
         // ============================================================
         const _CF = Object.freeze({
             _b: Object.freeze([
-                'onlyfans','hookup','tinder','bumble','xxxxxx','xxxxxxxx',	                'xxxxxxxx','xxxxxxxxxx','xxxxxx xxx','xxxxxx',	                'xxxxxxxxxx','xxxxxxxxx','xxxxxxxxxx','cam4','bongacams',
+                'onlyfans','hookup','tinder','bumble','xxxxxx','xxxxxxxx',                'xxxxxxxx','xxxxxxxxxx','xxxxxx xxx','xxxxxx',                'xxxxxxxxxx','xxxxxxxxx','xxxxxxxxxx','cam4','bongacams',
                 'myfreecams','flirt4free','streamate','fansly','manyvids',
             ]),
             _d: Object.freeze([
@@ -285,12 +402,159 @@
         Object.defineProperty(window, '_CF', { value: _CF, writable: false, configurable: false });
         // ============================================================
 
+        // === Sound effect for download complete ===
+        function playBeep() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 800;
+                osc.type = 'sine';
+                gain.gain.value = 0.15;
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                osc.stop(ctx.currentTime + 0.3);
+            } catch(e) {}
+        }
+
+        // === File type detection from URL ===
+        function detectFileType(url) {
+            if (!url) return { type: 'unknown', icon: 'bi-file-earmark', label: 'קובץ', color: 'secondary' };
+            const lower = url.toLowerCase();
+            const ext = lower.split('?')[0].split('.').pop();
+            // Video
+            if (['mp4','mkv','avi','mov','wmv','flv','webm','m4v','3gp'].includes(ext) ||
+                /youtube|youtu\.be|vimeo|dailymotion|wistia|twitch/.test(lower))
+                return { type: 'video', icon: 'bi-film', label: 'וידאו', color: 'primary' };
+            // Audio
+            if (['mp3','wav','ogg','flac','aac','m4a','wma'].includes(ext) ||
+                /soundcloud|spotify|podcasts/.test(lower))
+                return { type: 'audio', icon: 'bi-music-note-beamed', label: 'שמע', color: 'success' };
+            // Image
+            if (['jpg','jpeg','png','gif','webp','bmp','svg','ico','tiff'].includes(ext) ||
+                /flickr|imgur|unsplash/.test(lower))
+                return { type: 'image', icon: 'bi-image', label: 'תמונה', color: 'info' };
+            // Document
+            if (['pdf','doc','docx','txt','rtf','odt','xlsx','xls','csv'].includes(ext))
+                return { type: 'doc', icon: 'bi-file-earmark-text', label: 'מסמך', color: 'warning' };
+            // Presentation
+            if (['ppt','pptx','key','odp'].includes(ext) || /slides|presentations/.test(lower))
+                return { type: 'presentation', icon: 'bi-file-earmark-slides', label: 'מצגת', color: 'danger' };
+            // Archive/hidabroot
+            if (/hidabroot|הידברות/.test(lower)) return { type: 'video', icon: 'bi-play-circle', label: 'הידברות', color: 'success' };
+            if (/archive\.org/.test(lower)) return { type: 'video', icon: 'bi-archive', label: 'Archive.org', color: 'warning' };
+            return { type: 'video', icon: 'bi-film', label: 'וידאו', color: 'primary' };
+        }
+
+        // === URL Preview ===
+        function showUrlPreview(url) {
+            const preview = document.getElementById('urlPreview');
+            if (!url || !url.startsWith('http')) { preview.classList.add('d-none'); return; }
+            const ft = detectFileType(url);
+            const domain = getDomain(url);
+            const favicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+            preview.innerHTML = `<div class="url-preview">
+                <img src="${favicon}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2220%22 height=%2220%22><rect fill=%22%236c5ce7%22 rx=%224%22 width=%2220%22 height=%2220%22/></svg>'">
+                <span class="fw-bold small">${domain}</span>
+                <span class="badge bg-${ft.color}"><i class="bi ${ft.icon} me-1"></i>${ft.label}</span>
+                <span class="small text-muted" id="speedEstimate"></span>
+            </div>`;
+            preview.classList.remove('d-none');
+            // Show speed estimate
+            const speeds = { 'video': '~2-5 דק\'', 'audio': '~30 שניות', 'image': '~10 שניות', 'doc': '~15 שניות', 'presentation': '~1 דק\'' };
+            const est = document.getElementById('speedEstimate');
+            if (est) est.textContent = speeds[ft.type] || '~1-3 דק\'';
+        }
+
+        // Watch URL input for preview
+        document.getElementById('urlInput').addEventListener('input', function() {
+            showUrlPreview(this.value.trim());
+        });
+
+        // === Paste from clipboard button ===
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text) {
+                    document.getElementById('urlInput').value = text.trim();
+                    showUrlPreview(text.trim());
+                    showToast('הודבק מהלוח', 'info');
+                }
+            } catch(e) {
+                showToast('לא ניתן לקרוא מהלוח', 'error');
+            }
+        }
+
+        // === Keyboard shortcuts ===
+        document.addEventListener('keydown', function(e) {
+            // Only when main app is visible and not in input
+            const mainVisible = !document.getElementById('mainApp').classList.contains('d-none');
+            if (!mainVisible) return;
+
+            // Ctrl+V: auto-paste and download
+            if (e.ctrlKey && e.key === 'v' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                navigator.clipboard.readText().then(text => {
+                    if (text && text.startsWith('http')) {
+                        document.getElementById('urlInput').value = text.trim();
+                        showUrlPreview(text.trim());
+                        switchTab('download');
+                        startDownload(text.trim());
+                    }
+                }).catch(() => {});
+            }
+            // Ctrl+K: focus search
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                switchTab('search');
+                document.getElementById('searchInput').focus();
+            }
+            // Ctrl+Q: go to queue
+            if (e.ctrlKey && e.key === 'q') {
+                e.preventDefault();
+                switchTab('queue');
+            }
+        });
+
+        // === Drag & Drop URL ===
+        const dropOverlay = document.getElementById('dropOverlay');
+        let dragCounter = 0;
+        document.addEventListener('dragenter', function(e) {
+            e.preventDefault();
+            dragCounter++;
+            if (!document.getElementById('mainApp').classList.contains('d-none')) {
+                dropOverlay.classList.add('active');
+            }
+        });
+        document.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter <= 0) { dropOverlay.classList.remove('active'); dragCounter = 0; }
+        });
+        document.addEventListener('dragover', function(e) { e.preventDefault(); });
+        document.addEventListener('drop', function(e) {
+            e.preventDefault();
+            dragCounter = 0;
+            dropOverlay.classList.remove('active');
+            const text = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text/uri-list');
+            if (text && text.startsWith('http')) {
+                document.getElementById('urlInput').value = text.trim();
+                showUrlPreview(text.trim());
+                switchTab('download');
+                showToast('קישור נקלט! לחץ הורד.', 'info');
+            }
+        });
+
         function checkPin() {
             if (document.getElementById('pinInput').value === PIN) {
                 document.getElementById('pinScreen').classList.add('d-none');
                 document.getElementById('mainApp').classList.remove('d-none');
                 if (!localStorage.getItem('gh_token') && !GH_TOKEN) new bootstrap.Modal(document.getElementById('setupModal')).show();
                 updateStats();
+                initTooltips();
+                renderRecentSearches();
             } else {
                 document.getElementById('pinError').classList.remove('d-none');
                 document.getElementById('pinInput').value = '';
@@ -305,13 +569,29 @@
             showToast('Token נשמר בהצלחה!', 'success');
         }
 
+        // === Tooltips init ===
+        function initTooltips() {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                new bootstrap.Tooltip(el, { trigger: 'hover', delay: { show: 400, hide: 0 } });
+            });
+        }
+
+        // === Tab switching with fade ===
         const TABS = ['download','search','queue','favorites','drive','history'];
         function switchTab(tab) {
             TABS.forEach(t => {
-                document.getElementById('tab-' + t).classList.toggle('d-none', t !== tab);
-                document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
+                const pane = document.getElementById('tab-' + t);
+                const btn = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+                if (t === tab) {
+                    pane.classList.add('active-tab');
+                    btn.classList.add('active');
+                } else {
+                    pane.classList.remove('active-tab');
+                    btn.classList.remove('active');
+                }
             });
             if (tab === 'favorites') renderFavorites();
+            if (tab === 'search') renderRecentSearches();
         }
 
         function showToast(msg, type = 'info') {
@@ -325,6 +605,12 @@
             setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 4000);
         }
 
+        // === Quick site buttons ===
+        function openQuickSite(url) {
+            window.open(url, '_blank');
+            showToast('העתק קישור מהאתר והדבק כאן', 'info');
+        }
+
         // === Download with content filter + progress tracking ===
         async function startDownload(url) {
             if (!url || !url.startsWith('http')) { showToast('הכנס קישור תקין', 'error'); return; }
@@ -336,8 +622,9 @@
 
             const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
             const workflow = isYouTube ? 'youtube-to-drive.yml' : 'download-to-drive.yml';
+            const ft = detectFileType(url);
 
-            const qItem = { url, status: 'pending', progress: 0, time: new Date().toLocaleString('he-IL'), type: isYouTube ? 'YouTube' : getDomain(url) };
+            const qItem = { url, status: 'pending', progress: 0, time: new Date().toLocaleString('he-IL'), type: isYouTube ? 'YouTube' : getDomain(url), fileType: ft.type };
             queue.unshift(qItem);
             saveQueue();
             updateStats();
@@ -373,13 +660,13 @@
                 showToast('שגיאת רשת', 'error');
             }
             document.getElementById('urlInput').value = '';
+            document.getElementById('urlPreview').classList.add('d-none');
         }
 
         // Track download progress via GitHub Actions API
         async function trackProgress(qItem) {
             for (let i = 0; i < 60; i++) {
                 await new Promise(r => setTimeout(r, 5000));
-                // Simulate progress based on time
                 if (qItem.status === 'downloading') {
                     qItem.progress = Math.min(90, qItem.progress + Math.random() * 15);
                     saveQueue();
@@ -397,6 +684,7 @@
                             saveQueue();
                             updateStats();
                             showToast('הקובץ הועלה לדרייב!', 'success');
+                            playBeep();
                             sendNotification('VideoGrab', 'הקובץ הועלה לדרייב בהצלחה!');
                             return;
                         } else if (run.conclusion === 'failure') {
@@ -410,12 +698,12 @@
                 } catch(e) {}
             }
             qItem.status = 'done'; qItem.progress = 100; saveQueue();
+            playBeep();
         }
 
         function startMultiDownload() {
             const urls = document.getElementById('multiUrls').value.split('\n').map(u => u.trim()).filter(u => u.startsWith('http'));
             if (!urls.length) { showToast('הכנס לפחות קישור אחד', 'error'); return; }
-            // Filter content
             const blocked = urls.filter(u => _CF.checkUrl(u));
             const clean = urls.filter(u => !_CF.checkUrl(u));
             if (blocked.length) showToast(`${blocked.length} קישורים נחסמו (תוכן לא צנוע)`, 'warning');
@@ -427,7 +715,7 @@
 
         function getDomain(url) { try { return new URL(url).hostname.replace('www.',''); } catch { return 'אתר'; } }
 
-        // === Queue with progress bars ===
+        // === Queue with progress bars + retry + clear completed ===
         function saveQueue() { localStorage.setItem('dl_queue', JSON.stringify(queue)); renderQueue(); }
         function renderQueue() {
             const el = document.getElementById('queueList');
@@ -440,17 +728,22 @@
                 const icons = { pending:'hourglass-split text-warning', downloading:'arrow-down-circle-fill text-primary', done:'check-circle-fill text-success', error:'x-circle-fill text-danger' };
                 const labels = { pending:'ממתין', downloading:'יורד...', done:'הושלם', error:'נכשל' };
                 const pct = Math.round(q.progress || 0);
+                const ft = detectFileType(q.url);
+                const speedHints = { video:'~2-5 דק\'', audio:'~30 שניות', image:'~10 שניות', doc:'~15 שניות', presentation:'~1 דק\'' };
+                const speedEst = q.status === 'downloading' ? `<span class="small text-muted me-2"><i class="bi bi-speedometer me-1"></i>${speedHints[ft.type] || '~2 דק\''}</span>` : '';
                 return `<div class="queue-item p-3 mb-2 bg-light">
                     <div class="d-flex align-items-center justify-content-between mb-1">
                         <div class="d-flex align-items-center flex-grow-1">
                             <i class="bi bi-${icons[q.status]} fs-5 me-2"></i>
                             <div class="flex-grow-1">
-                                <div class="small fw-bold">${q.type}</div>
+                                <div class="small fw-bold"><i class="bi ${ft.icon} me-1"></i>${q.type} <span class="badge bg-${ft.color} badge-source">${ft.label}</span></div>
                                 <div class="small text-muted text-truncate" style="max-width:280px" dir="ltr">${q.url}</div>
                             </div>
                         </div>
                         <div class="d-flex align-items-center">
+                            ${speedEst}
                             ${q.status === 'downloading' ? `<span class="fw-bold text-primary me-2">${pct}%</span>` : ''}
+                            ${q.status === 'error' ? `<button class="btn btn-sm btn-outline-warning me-1" onclick="retryDownload(${i})" data-bs-toggle="tooltip" title="נסה שוב"><i class="bi bi-arrow-repeat"></i></button>` : ''}
                             <span class="badge bg-${q.status==='done'?'success':q.status==='error'?'danger':'primary'} me-2">${labels[q.status]}</span>
                             <button class="btn btn-sm btn-outline-secondary" onclick="queue.splice(${i},1);saveQueue();updateStats()"><i class="bi bi-x"></i></button>
                         </div>
@@ -459,6 +752,58 @@
                     ${q.status === 'done' ? '<small class="text-success"><i class="bi bi-check me-1"></i>הקובץ בדרייב</small>' : ''}
                 </div>`;
             }).join('');
+        }
+
+        // Retry failed download
+        function retryDownload(index) {
+            const item = queue[index];
+            if (item) {
+                const url = item.url;
+                queue.splice(index, 1);
+                saveQueue();
+                startDownload(url);
+            }
+        }
+
+        // Clear completed items from queue
+        function clearCompletedQueue() {
+            const before = queue.length;
+            queue = queue.filter(q => q.status !== 'done');
+            saveQueue();
+            updateStats();
+            const removed = before - queue.length;
+            if (removed > 0) showToast(`${removed} פריטים שהושלמו נמחקו`, 'info');
+            else showToast('אין פריטים שהושלמו', 'info');
+        }
+
+        // === Recent searches ===
+        function getRecentSearches() { return JSON.parse(localStorage.getItem('recent_searches') || '[]'); }
+        function addRecentSearch(query) {
+            let searches = getRecentSearches();
+            searches = searches.filter(s => s !== query);
+            searches.unshift(query);
+            if (searches.length > 8) searches.pop();
+            localStorage.setItem('recent_searches', JSON.stringify(searches));
+        }
+        function renderRecentSearches() {
+            const searches = getRecentSearches();
+            const el = document.getElementById('recentSearches');
+            if (!searches.length) { el.classList.add('d-none'); return; }
+            el.classList.remove('d-none');
+            el.innerHTML = '<small class="text-muted fw-bold"><i class="bi bi-clock me-1"></i>חיפושים אחרונים:</small> ' +
+                searches.map(s => `<span class="recent-search" onclick="document.getElementById('searchInput').value='${s}';searchVideos()">${s}</span>`).join('');
+        }
+
+        // === Search filter ===
+        function setSearchFilter(el, source) {
+            document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+            el.classList.add('active');
+            currentSearchFilter = source;
+            // Re-filter existing results
+            if (lastSearchResults.length) {
+                const filtered = source === 'all' ? lastSearchResults : lastSearchResults.filter(v => v.source === source);
+                displayResults(filtered, document.getElementById('searchInput').value);
+            }
         }
 
         // === Search - Fast mode (GitHub Actions) + Deep mode ===
@@ -474,23 +819,33 @@
 
             if (!GH_TOKEN) { new bootstrap.Modal(document.getElementById('setupModal')).show(); return; }
 
-            const results = document.getElementById('searchResults');
-            results.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-3 fw-bold">מחפש...</p></div>';
+            addRecentSearch(query);
+            renderRecentSearches();
 
-            // Trigger GitHub Actions search (runs in background)
+            const results = document.getElementById('searchResults');
+            // Skeleton loading animation
+            results.innerHTML = `<div class="py-3">
+                <div class="d-flex align-items-center mb-3"><div class="spinner-border spinner-border-sm text-primary me-2"></div><span class="fw-bold">מחפש ב-Dailymotion, Vimeo, הידברות, Archive.org...</span></div>
+                <div class="skeleton skeleton-card"></div>
+                <div class="skeleton skeleton-card"></div>
+                <div class="skeleton skeleton-card"></div>
+                <div class="skeleton skeleton-card" style="width:85%"></div>
+                <div class="skeleton skeleton-card" style="width:70%"></div>
+            </div>`;
+
+            // Trigger GitHub Actions search
             fetch(`https://api.github.com/repos/${REPO}/actions/workflows/search.yml/dispatches`, {
                 method: 'POST',
                 headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' },
                 body: JSON.stringify({ ref: 'master', inputs: { query: query } })
             }).catch(() => {});
 
-            // Meanwhile show "searching..." and poll for results
-            results.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-3 fw-bold">מחפש ב-Dailymotion, Vimeo, הידברות, Archive.org...</p><p class="small text-muted">ממתין לתוצאות...</p></div>';
-
             // Poll for completed workflow
             for (let i = 0; i < 24; i++) {
                 await new Promise(r => setTimeout(r, 5000));
-                results.querySelector('.text-muted').textContent = `ממתין... (${(i+1)*5} שניות)`;
+                // Update skeleton with timer
+                const skeletonTimer = results.querySelector('.fw-bold');
+                if (skeletonTimer) skeletonTimer.textContent = `מחפש... (${(i+1)*5} שניות)`;
                 try {
                     const runsResp = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/search.yml/runs?per_page=1`, {
                         headers: { 'Authorization': `token ${GH_TOKEN}` }
@@ -505,7 +860,9 @@
                             const data = await jsonResp.json();
                             if (data.query === query || data.query?.includes(query.split(' ')[0])) {
                                 const safe = data.results.filter(v => !_CF.check(v.title) && !_CF.checkUrl(v.url));
-                                displayResults(safe, query);
+                                lastSearchResults = safe;
+                                const filtered = currentSearchFilter === 'all' ? safe : safe.filter(v => v.source === currentSearchFilter);
+                                displayResults(filtered, query);
                                 return;
                             }
                         }
@@ -527,13 +884,14 @@
                     ${thumb}
                     <div class="flex-grow-1"><div class="fw-bold mb-1">${v.title}</div>
                     ${mins>0?`<small class="text-muted"><i class="bi bi-clock me-1"></i>${mins} דק'</small>`:''}<span class="badge ${badge} badge-source ms-2">${v.source}</span></div>
-                    <button class="btn btn-sm btn-download text-white px-3" onclick="startDownload('${v.url}')"><i class="bi bi-download"></i></button>
+                    <button class="btn btn-sm btn-download text-white px-3" onclick="startDownload('${v.url}')" data-bs-toggle="tooltip" title="הורד לדרייב"><i class="bi bi-download"></i></button>
                 </div>`;
             }
             el.innerHTML = html;
+            initTooltips();
         }
 
-        // === History ===
+        // === History with copy URL + CSV export ===
         function addHistory(url, type) {
             const list = JSON.parse(localStorage.getItem('dl_history')||'[]');
             list.unshift({ url, type, time: new Date().toLocaleString('he-IL') });
@@ -548,10 +906,40 @@
             el.innerHTML = list.map((h,i) => `<div class="history-item p-2 mb-2 d-flex justify-content-between align-items-center">
                 <div class="flex-grow-1"><small class="text-muted">${h.time}</small><span class="badge bg-secondary badge-source ms-1">${h.type}</span>
                 <div class="small text-truncate" style="max-width:350px" dir="ltr">${h.url}</div></div>
-                <div class="d-flex"><button class="btn btn-sm btn-outline-primary me-1" onclick="startDownload('${h.url}')"><i class="bi bi-arrow-repeat"></i></button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteHistory(${i})"><i class="bi bi-trash"></i></button></div>
+                <div class="d-flex">
+                    <button class="btn btn-sm btn-outline-secondary me-1" onclick="copyUrl('${h.url}')" data-bs-toggle="tooltip" title="העתק קישור"><i class="bi bi-clipboard"></i></button>
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="startDownload('${h.url}')" data-bs-toggle="tooltip" title="הורד שוב"><i class="bi bi-arrow-repeat"></i></button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteHistory(${i})" data-bs-toggle="tooltip" title="מחק"><i class="bi bi-trash"></i></button>
+                </div>
             </div>`).join('');
+            initTooltips();
         }
+
+        // Copy URL to clipboard
+        function copyUrl(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                showToast('הקישור הועתק!', 'success');
+            }).catch(() => {
+                showToast('שגיאה בהעתקה', 'error');
+            });
+        }
+
+        // Export history as CSV
+        function exportHistoryCSV() {
+            const list = JSON.parse(localStorage.getItem('dl_history') || '[]');
+            if (!list.length) { showToast('אין היסטוריה לייצוא', 'info'); return; }
+            let csv = '\uFEFF' + 'תאריך,מקור,קישור\n';
+            list.forEach(h => {
+                csv += `"${h.time}","${h.type}","${h.url}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'videograb_history.csv';
+            link.click();
+            showToast('היסטוריה יוצאה בהצלחה!', 'success');
+        }
+
         function deleteHistory(i) { const l=JSON.parse(localStorage.getItem('dl_history')||'[]');l.splice(i,1);localStorage.setItem('dl_history',JSON.stringify(l));renderHistory();updateStats(); }
         function clearHistory() { if(confirm('למחוק את כל ההיסטוריה?')){localStorage.removeItem('dl_history');renderHistory();updateStats();} }
 
@@ -594,10 +982,11 @@
                 <div><i class="bi bi-star-fill text-warning me-2"></i><strong>${f.name}</strong>
                 <div class="small text-muted" dir="ltr">${f.url}</div></div>
                 <div>
-                    <button class="btn btn-sm btn-download text-white me-1" onclick="startDownload('${f.url}')"><i class="bi bi-download"></i></button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="removeFavorite(${i})"><i class="bi bi-trash"></i></button>
+                    <button class="btn btn-sm btn-download text-white me-1" onclick="startDownload('${f.url}')" data-bs-toggle="tooltip" title="הורד"><i class="bi bi-download"></i></button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeFavorite(${i})" data-bs-toggle="tooltip" title="הסר"><i class="bi bi-trash"></i></button>
                 </div>
             </div>`).join('');
+            initTooltips();
         }
 
         // === Drive Browser ===
@@ -605,7 +994,6 @@
             const el = document.getElementById('driveFiles');
             el.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div> טוען...</div>';
             try {
-                // Use GitHub Actions to list Drive files (since we can't access Drive API from here due to NetFree)
                 const resp = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/list-drive.yml/dispatches`, {
                     method: 'POST',
                     headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' },
@@ -613,7 +1001,6 @@
                 });
                 if (resp.status === 204) {
                     el.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div> טוען קבצים מדרייב...</div>';
-                    // Poll for results
                     for (let i = 0; i < 20; i++) {
                         await new Promise(r => setTimeout(r, 5000));
                         try {
@@ -677,14 +1064,12 @@
             st.classList.remove('d-none');
             st.textContent = 'שולח...';
             try {
-                // Read current feedback
                 const r = await fetch(`https://api.github.com/repos/${REPO}/contents/docs/feedback.json`, {
                     headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
                 });
                 const file = await r.json();
                 const current = JSON.parse(atob(file.content));
                 current.messages.push({ text: msg, time: new Date().toISOString() });
-                // Update file
                 await fetch(`https://api.github.com/repos/${REPO}/contents/docs/feedback.json`, {
                     method: 'PUT',
                     headers: { 'Authorization': `token ${GH_TOKEN}`, 'Content-Type': 'application/json' },
