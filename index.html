@@ -160,6 +160,15 @@
                         </div>
                     </div>
 
+                    <!-- Feedback box -->
+                    <div class="main-card p-3 mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="text" id="feedbackInput" class="form-control form-control-sm" placeholder="כתוב לי מה לשפר..." onkeydown="if(event.key==='Enter')sendFeedback()">
+                            <button class="btn btn-sm btn-download text-white px-3" onclick="sendFeedback()"><i class="bi bi-send"></i></button>
+                        </div>
+                        <div id="feedbackStatus" class="small text-muted mt-1 d-none"></div>
+                    </div>
+
                     <div class="text-center small" style="position:relative;z-index:1">
                         <p class="text-white-50"><i class="bi bi-shield-check me-1"></i>מסנן תוכן פעיל | <i class="bi bi-folder2 me-1"></i>קבצים מגיעים ל"סרטונים שהורדו" בדרייב</p>
                         <button class="btn btn-sm text-white-50" onclick="toggleDark()" id="darkBtn"><i class="bi bi-moon me-1"></i>מצב כהה</button>
@@ -513,6 +522,35 @@
         window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; document.getElementById('installBtn').style.display = ''; });
         function installPWA() { if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt = null; } }
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+        // === Feedback ===
+        async function sendFeedback() {
+            const msg = document.getElementById('feedbackInput').value.trim();
+            if (!msg) return;
+            const st = document.getElementById('feedbackStatus');
+            st.classList.remove('d-none');
+            st.textContent = 'שולח...';
+            try {
+                // Read current feedback
+                const r = await fetch(`https://api.github.com/repos/${REPO}/contents/docs/feedback.json`, {
+                    headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
+                });
+                const file = await r.json();
+                const current = JSON.parse(atob(file.content));
+                current.messages.push({ text: msg, time: new Date().toISOString() });
+                // Update file
+                await fetch(`https://api.github.com/repos/${REPO}/contents/docs/feedback.json`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `token ${GH_TOKEN}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: 'feedback', content: btoa(unescape(encodeURIComponent(JSON.stringify(current)))), sha: file.sha })
+                });
+                st.textContent = 'נשלח! אטפל בזה.';
+                document.getElementById('feedbackInput').value = '';
+                showToast('ההודעה נשלחה!', 'success');
+            } catch(e) {
+                st.textContent = 'שגיאה: ' + e.message;
+            }
+        }
 
         // === Push Notifications ===
         async function requestNotifications() {
