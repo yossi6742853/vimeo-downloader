@@ -11,14 +11,22 @@
         * { font-family: 'Heebo', sans-serif; }
         body { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); min-height: 100vh; }
         .main-card { background: rgba(255,255,255,0.95); border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-        .btn-download { background: linear-gradient(45deg, #e94560, #0f3460); border: none; font-size: 1.2rem; padding: 12px 40px; border-radius: 12px; }
+        .btn-download { background: linear-gradient(45deg, #e94560, #0f3460); border: none; border-radius: 12px; }
         .btn-download:hover { background: linear-gradient(45deg, #0f3460, #e94560); transform: scale(1.02); }
+        .btn-search { background: #0f3460; border: none; border-radius: 12px; }
+        .btn-search:hover { background: #1a4a8a; }
         .status-box { background: #f8f9fa; border-radius: 12px; border-right: 4px solid #0f3460; }
         .logo { font-size: 3rem; color: #e94560; }
-        #urlInput { border-radius: 12px; font-size: 1.1rem; padding: 14px; }
+        .form-control { border-radius: 12px; font-size: 1.1rem; padding: 12px; }
+        .video-result { border-radius: 12px; transition: all 0.2s; cursor: pointer; }
+        .video-result:hover { background: #e9ecef; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .video-thumb { border-radius: 8px; width: 160px; height: 90px; object-fit: cover; }
+        .tab-btn { border: none; background: transparent; padding: 10px 20px; color: #666; border-bottom: 3px solid transparent; }
+        .tab-btn.active { color: #0f3460; border-bottom-color: #e94560; font-weight: 700; }
+        .pin-input { letter-spacing: 15px; font-size: 2rem; text-align: center; }
+        .badge-source { font-size: 0.7rem; }
         .history-item { border-radius: 8px; transition: background 0.2s; }
         .history-item:hover { background: #e9ecef; }
-        .pin-input { letter-spacing: 15px; font-size: 2rem; text-align: center; }
     </style>
 </head>
 <body>
@@ -35,195 +43,267 @@
 
     <!-- Main App -->
     <div id="mainApp" class="d-none">
-        <div class="container py-5">
+        <div class="container py-4">
             <div class="row justify-content-center">
-                <div class="col-lg-8">
+                <div class="col-lg-9">
                     <!-- Header -->
-                    <div class="text-center text-white mb-4">
+                    <div class="text-center text-white mb-3">
                         <div class="logo"><i class="bi bi-cloud-arrow-down"></i></div>
                         <h2>הורדת סרטונים לדרייב</h2>
-                        <p class="opacity-75">הדבק קישור לסרטון → הסרטון מגיע ישירות ל-Google Drive שלך</p>
                     </div>
 
-                    <!-- Download Card -->
-                    <div class="main-card p-4 mb-4">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">קישור לסרטון</label>
-                            <input type="url" id="urlInput" class="form-control" placeholder="https://www.example.com/video/..." dir="ltr">
+                    <!-- Tabs -->
+                    <div class="main-card p-0 mb-4">
+                        <div class="d-flex border-bottom">
+                            <button class="tab-btn active flex-fill" onclick="switchTab('download')">
+                                <i class="bi bi-download me-1"></i>הורדה ישירה
+                            </button>
+                            <button class="tab-btn flex-fill" onclick="switchTab('search')">
+                                <i class="bi bi-search me-1"></i>חיפוש סרטונים
+                            </button>
+                            <button class="tab-btn flex-fill" onclick="switchTab('history')">
+                                <i class="bi bi-clock-history me-1"></i>היסטוריה
+                            </button>
                         </div>
-                        <button class="btn btn-download text-white w-100" onclick="startDownload()" id="downloadBtn">
-                            <i class="bi bi-download me-2"></i>הורד לדרייב
-                        </button>
 
-                        <!-- Status -->
-                        <div id="statusArea" class="d-none mt-3">
-                            <div class="status-box p-3">
-                                <div class="d-flex align-items-center">
-                                    <div id="statusSpinner" class="spinner-border spinner-border-sm text-primary me-2"></div>
-                                    <div id="statusIcon" class="d-none me-2"></div>
-                                    <span id="statusText">מתחיל...</span>
+                        <!-- Tab: Direct Download -->
+                        <div id="tab-download" class="p-4">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">קישור לסרטון</label>
+                                <input type="url" id="urlInput" class="form-control" placeholder="https://..." dir="ltr">
+                            </div>
+                            <button class="btn btn-download text-white w-100 py-2" onclick="startDownload(document.getElementById('urlInput').value)">
+                                <i class="bi bi-download me-2"></i>הורד לדרייב
+                            </button>
+                            <div id="downloadStatus" class="d-none mt-3">
+                                <div class="status-box p-3">
+                                    <div class="d-flex align-items-center">
+                                        <span class="spinner-border spinner-border-sm text-primary me-2" id="dlSpinner"></span>
+                                        <span id="dlStatusText"></span>
+                                    </div>
                                 </div>
-                                <div id="statusDetail" class="text-muted small mt-1"></div>
+                            </div>
+                        </div>
+
+                        <!-- Tab: Search -->
+                        <div id="tab-search" class="p-4 d-none">
+                            <div class="input-group mb-3">
+                                <input type="text" id="searchInput" class="form-control" placeholder="חפש סרטונים..." onkeydown="if(event.key==='Enter')searchVideos()">
+                                <button class="btn btn-search text-white px-4" onclick="searchVideos()">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                            <div id="searchResults">
+                                <p class="text-muted text-center">חפש סרטונים מכל הרשת</p>
+                            </div>
+                        </div>
+
+                        <!-- Tab: History -->
+                        <div id="tab-history" class="p-4 d-none">
+                            <div id="historyList">
+                                <p class="text-muted text-center">אין הורדות עדיין</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- History -->
-                    <div class="main-card p-4">
-                        <h5><i class="bi bi-clock-history me-2"></i>היסטוריה</h5>
-                        <div id="historyList">
-                            <p class="text-muted text-center">אין הורדות עדיין</p>
-                        </div>
-                    </div>
-
                     <!-- Info -->
-                    <div class="text-center text-white-50 mt-3 small">
-                        <p>הסרטונים מגיעים לתיקייה "סרטונים שהורדו" בגוגל דרייב</p>
-                        <p>עובד עם: הידברות, Vimeo, ועוד | לא עובד עם: YouTube</p>
+                    <div class="text-center text-white-50 small">
+                        <p>הסרטונים מגיעים לתיקייה "סרטונים שהורדו" ב-Google Drive</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Setup Modal -->
+    <div class="modal fade" id="setupModal" tabindex="-1">
+        <div class="modal-dialog"><div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">הגדרה ראשונית</h5></div>
+            <div class="modal-body">
+                <p>צריך GitHub Token פעם אחת בלבד:</p>
+                <ol class="small">
+                    <li>לך ל: <a href="https://github.com/settings/tokens" target="_blank">github.com/settings/tokens</a></li>
+                    <li>Generate new token (classic)</li>
+                    <li>סמן: <code>repo</code> + <code>workflow</code></li>
+                    <li>העתק את ה-Token</li>
+                </ol>
+                <input type="text" id="tokenInput" class="form-control" placeholder="ghp_..." dir="ltr">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-download text-white" onclick="saveToken()">שמור</button>
+            </div>
+        </div></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        const GITHUB_TOKEN = localStorage.getItem('gh_token') || '';
         const REPO = 'yossi6742853/vimeo-downloader';
         const PIN = '5678';
+        let GH_TOKEN = localStorage.getItem('gh_token') || '';
 
+        // PIN
         function checkPin() {
             if (document.getElementById('pinInput').value === PIN) {
                 document.getElementById('pinScreen').classList.add('d-none');
                 document.getElementById('mainApp').classList.remove('d-none');
+                if (!GH_TOKEN) {
+                    new bootstrap.Modal(document.getElementById('setupModal')).show();
+                }
             } else {
                 document.getElementById('pinError').classList.remove('d-none');
                 document.getElementById('pinInput').value = '';
             }
         }
+        document.getElementById('pinInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkPin(); });
 
-        document.getElementById('pinInput').addEventListener('keydown', e => {
-            if (e.key === 'Enter') checkPin();
-        });
-
-        async function startDownload() {
-            const url = document.getElementById('urlInput').value.trim();
-            if (!url) { alert('הכנס קישור'); return; }
-
-            const btn = document.getElementById('downloadBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>שולח...';
-
-            showStatus('שולח בקשת הורדה...', '');
-
-            try {
-                // Trigger GitHub Actions workflow
-                const resp = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/download-to-drive.yml/dispatches`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    },
-                    body: JSON.stringify({ ref: 'master', inputs: { url: url } })
-                });
-
-                if (resp.status === 204) {
-                    showStatus('ההורדה התחילה!', 'הסרטון יורד בשרת GitHub ויעלה אוטומטית לדרייב. זה יכול לקחת כמה דקות.');
-                    addHistory(url, 'בתהליך');
-
-                    // Poll for completion
-                    setTimeout(() => pollStatus(url), 10000);
-                } else {
-                    const err = await resp.text();
-                    showStatus('שגיאה', err, true);
-                }
-            } catch(e) {
-                showStatus('שגיאת רשת', e.message, true);
-            }
-
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-download me-2"></i>הורד לדרייב';
+        function saveToken() {
+            GH_TOKEN = document.getElementById('tokenInput').value.trim();
+            localStorage.setItem('gh_token', GH_TOKEN);
+            bootstrap.Modal.getInstance(document.getElementById('setupModal')).hide();
         }
 
-        async function pollStatus(url) {
-            try {
-                const resp = await fetch(`https://api.github.com/repos/${REPO}/actions/runs?per_page=1&status=completed`, {
-                    headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-                });
-                const data = await resp.json();
-                if (data.workflow_runs && data.workflow_runs.length > 0) {
-                    const run = data.workflow_runs[0];
-                    if (run.conclusion === 'success') {
-                        showStatus('הסרטון הועלה לדרייב!', 'בדוק בתיקייה "סרטונים שהורדו"', false, true);
-                        updateHistory(url, 'הושלם ✓');
-                        return;
-                    }
-                }
-            } catch(e) {}
-
-            // Keep polling
-            showStatus('מוריד...', 'ממתין לסיום ההורדה וההעלאה לדרייב');
-            setTimeout(() => pollStatus(url), 15000);
-        }
-
-        function showStatus(text, detail, isError = false, isSuccess = false) {
-            document.getElementById('statusArea').classList.remove('d-none');
-            document.getElementById('statusText').textContent = text;
-            document.getElementById('statusDetail').textContent = detail;
-
-            const spinner = document.getElementById('statusSpinner');
-            const icon = document.getElementById('statusIcon');
-
-            if (isError) {
-                spinner.classList.add('d-none');
-                icon.classList.remove('d-none');
-                icon.innerHTML = '<i class="bi bi-x-circle text-danger fs-5"></i>';
-            } else if (isSuccess) {
-                spinner.classList.add('d-none');
-                icon.classList.remove('d-none');
-                icon.innerHTML = '<i class="bi bi-check-circle text-success fs-5"></i>';
-            } else {
-                spinner.classList.remove('d-none');
-                icon.classList.add('d-none');
-            }
-        }
-
-        function addHistory(url, status) {
-            const list = document.getElementById('historyList');
-            if (list.querySelector('.text-muted')) list.innerHTML = '';
-
-            const domain = new URL(url).hostname;
-            const item = document.createElement('div');
-            item.className = 'history-item p-2 mb-2 d-flex justify-content-between align-items-center';
-            item.dataset.url = url;
-            item.innerHTML = `
-                <div>
-                    <i class="bi bi-film me-2"></i>
-                    <small class="text-muted">${domain}</small>
-                    <div class="small text-truncate" style="max-width:300px" dir="ltr">${url}</div>
-                </div>
-                <span class="badge bg-warning status-badge">${status}</span>
-            `;
-            list.prepend(item);
-        }
-
-        function updateHistory(url, status) {
-            const items = document.querySelectorAll('.history-item');
-            items.forEach(item => {
-                if (item.dataset.url === url) {
-                    item.querySelector('.status-badge').className = 'badge bg-success status-badge';
-                    item.querySelector('.status-badge').textContent = status;
-                }
+        // Tabs
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach((b, i) => {
+                b.classList.toggle('active', ['download','search','history'][i] === tab);
+            });
+            ['download','search','history'].forEach(t => {
+                document.getElementById('tab-' + t).classList.toggle('d-none', t !== tab);
             });
         }
 
-        // Setup: prompt for GitHub token if not saved
-        if (!GITHUB_TOKEN) {
-            const token = prompt('הכנס GitHub Personal Access Token\n(נדרש פעם אחת בלבד)');
-            if (token) {
-                localStorage.setItem('gh_token', token);
-                location.reload();
+        // Download
+        async function startDownload(url) {
+            if (!url) { alert('הכנס קישור'); return; }
+            if (!GH_TOKEN) { new bootstrap.Modal(document.getElementById('setupModal')).show(); return; }
+
+            const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+            const workflow = isYouTube ? 'youtube-to-drive.yml' : 'download-to-drive.yml';
+
+            showDlStatus('שולח בקשת הורדה...');
+
+            try {
+                const resp = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' },
+                    body: JSON.stringify({ ref: 'master', inputs: { url: url } })
+                });
+                if (resp.status === 204) {
+                    showDlStatus('ההורדה התחילה! הסרטון יגיע לדרייב תוך כמה דקות...');
+                    addHistory(url, isYouTube ? 'YouTube' : 'כללי');
+                } else {
+                    showDlStatus('שגיאה: ' + resp.status, true);
+                }
+            } catch(e) {
+                showDlStatus('שגיאת רשת: ' + e.message, true);
             }
         }
+
+        function showDlStatus(text, isError) {
+            const area = document.getElementById('downloadStatus');
+            area.classList.remove('d-none');
+            document.getElementById('dlStatusText').textContent = text;
+            document.getElementById('dlSpinner').style.display = isError ? 'none' : '';
+        }
+
+        // Search
+        async function searchVideos() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
+
+            const results = document.getElementById('searchResults');
+            results.innerHTML = '<div class="text-center py-4"><div class="spinner-border"></div><p class="mt-2">מחפש...</p></div>';
+
+            try {
+                // Use GitHub API to search (as a proxy to avoid NetFree blocks on search engines)
+                // Actually use DuckDuckGo lite which might work
+                const searchUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&per_page=1`;
+
+                // Use a different approach: search via Google Custom Search or similar
+                // For now, search common video sites directly
+                const sites = [
+                    { name: 'הידברות', url: `https://www.hidabroot.org/search?q=${encodeURIComponent(query)}`, icon: 'bi-play-circle' },
+                    { name: 'Dailymotion', url: `https://api.dailymotion.com/videos?search=${encodeURIComponent(query)}&fields=id,title,thumbnail_240_url,duration,url&limit=10`, api: true },
+                ];
+
+                let html = '';
+
+                // Search Dailymotion API (usually not blocked)
+                try {
+                    const dmResp = await fetch(`https://api.dailymotion.com/videos?search=${encodeURIComponent(query)}&fields=id,title,thumbnail_240_url,duration,url,embed_url&limit=10`);
+                    if (dmResp.ok) {
+                        const dmData = await dmResp.json();
+                        if (dmData.list && dmData.list.length > 0) {
+                            html += '<h6 class="mb-3"><i class="bi bi-collection-play me-1"></i>תוצאות מ-Dailymotion</h6>';
+                            for (const v of dmData.list) {
+                                const mins = Math.floor((v.duration || 0) / 60);
+                                html += `
+                                <div class="video-result p-3 mb-2 d-flex align-items-center" onclick="startDownload('${v.url}')">
+                                    <img src="${v.thumbnail_240_url}" class="video-thumb me-3" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 160 90%22><rect fill=%22%23ddd%22 width=%22160%22 height=%2290%22/><text x=%2280%22 y=%2250%22 text-anchor=%22middle%22 fill=%22%23999%22>No Image</text></svg>'">
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold">${v.title}</div>
+                                        <small class="text-muted">${mins} דקות</small>
+                                        <span class="badge bg-info badge-source ms-2">Dailymotion</span>
+                                    </div>
+                                    <button class="btn btn-sm btn-download text-white" onclick="event.stopPropagation();startDownload('${v.url}')">
+                                        <i class="bi bi-download"></i>
+                                    </button>
+                                </div>`;
+                            }
+                        }
+                    }
+                } catch(e) { console.log('Dailymotion search failed:', e); }
+
+                // Search Hidabroot
+                html += `
+                <h6 class="mb-3 mt-4"><i class="bi bi-search me-1"></i>חיפוש באתרים נוספים</h6>
+                <div class="video-result p-3 mb-2" onclick="window.open('https://www.hidabroot.org/search?q=${encodeURIComponent(query)}','_blank')">
+                    <i class="bi bi-box-arrow-up-left me-2"></i>חפש "<strong>${query}</strong>" בהידברות
+                </div>
+                <div class="video-result p-3 mb-2" onclick="window.open('https://www.dailymotion.com/search/${encodeURIComponent(query)}','_blank')">
+                    <i class="bi bi-box-arrow-up-left me-2"></i>חפש "<strong>${query}</strong>" ב-Dailymotion
+                </div>
+                <div class="video-result p-3 mb-2" onclick="window.open('https://vimeo.com/search?q=${encodeURIComponent(query)}','_blank')">
+                    <i class="bi bi-box-arrow-up-left me-2"></i>חפש "<strong>${query}</strong>" ב-Vimeo
+                </div>
+                <div class="video-result p-3 mb-2" onclick="window.open('https://archive.org/search?query=${encodeURIComponent(query)}&mediatype=movies','_blank')">
+                    <i class="bi bi-box-arrow-up-left me-2"></i>חפש "<strong>${query}</strong>" ב-Internet Archive
+                </div>
+                <p class="text-muted small mt-3 text-center">מצאת סרטון? העתק את הקישור ← לשונית "הורדה ישירה" ← הורד לדרייב</p>`;
+
+                results.innerHTML = html || '<p class="text-muted text-center">לא נמצאו תוצאות</p>';
+            } catch(e) {
+                results.innerHTML = `<p class="text-danger text-center">שגיאה בחיפוש: ${e.message}</p>`;
+            }
+        }
+
+        // History
+        function addHistory(url, type) {
+            const list = JSON.parse(localStorage.getItem('dl_history') || '[]');
+            list.unshift({ url, type, time: new Date().toLocaleString('he-IL') });
+            if (list.length > 20) list.pop();
+            localStorage.setItem('dl_history', JSON.stringify(list));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const list = JSON.parse(localStorage.getItem('dl_history') || '[]');
+            const el = document.getElementById('historyList');
+            if (!list.length) { el.innerHTML = '<p class="text-muted text-center">אין הורדות עדיין</p>'; return; }
+            el.innerHTML = list.map(h => `
+                <div class="history-item p-2 mb-2 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted">${h.time}</small>
+                        <span class="badge bg-secondary badge-source ms-1">${h.type}</span>
+                        <div class="small text-truncate" style="max-width:400px" dir="ltr">${h.url}</div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="startDownload('${h.url}')">
+                        <i class="bi bi-arrow-repeat"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+        renderHistory();
     </script>
 </body>
 </html>
