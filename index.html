@@ -127,6 +127,24 @@
                                 <input type="url" id="urlInput" class="form-control" placeholder="הדבק קישור כאן..." dir="ltr">
                                 <div class="form-text">סרטונים, מצגות, תמונות, PDF, מסמכים — מכל אתר שהוא</div>
                             </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold"><i class="bi bi-film me-1"></i>סוג</label>
+                                    <select id="formatSelect" class="form-select" style="border-radius:12px">
+                                        <option value="video">וידאו + שמע</option>
+                                        <option value="audio">שמע בלבד (MP3)</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold"><i class="bi bi-sliders me-1"></i>איכות</label>
+                                    <select id="qualitySelect" class="form-select" style="border-radius:12px">
+                                        <option value="best">הכי טובה</option>
+                                        <option value="720" selected>720p (מומלץ)</option>
+                                        <option value="480">480p (קל)</option>
+                                        <option value="360">360p (קטן)</option>
+                                    </select>
+                                </div>
+                            </div>
                             <button class="btn btn-download text-white w-100" onclick="startDownload(document.getElementById('urlInput').value)">
                                 <i class="bi bi-cloud-arrow-down me-2"></i>הורד לדרייב
                             </button>
@@ -325,10 +343,17 @@
             switchTab('queue');
 
             try {
+                const format = document.getElementById('formatSelect')?.value || 'video';
+                const quality = document.getElementById('qualitySelect')?.value || '720';
+                const inputs = { url };
+                if (workflow === 'download-to-drive.yml') {
+                    inputs.format = format;
+                    inputs.quality = quality;
+                }
                 const resp = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`, {
                     method: 'POST',
                     headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' },
-                    body: JSON.stringify({ ref: 'master', inputs: { url: url } })
+                    body: JSON.stringify({ ref: 'master', inputs })
                 });
                 if (resp.status === 204) {
                     qItem.status = 'downloading';

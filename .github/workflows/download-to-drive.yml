@@ -5,6 +5,14 @@ on:
       url:
         description: 'Video URL to download'
         required: true
+      format:
+        description: 'video or audio'
+        required: false
+        default: 'video'
+      quality:
+        description: '360/480/720/best'
+        required: false
+        default: '720'
 
 jobs:
   download:
@@ -23,8 +31,17 @@ jobs:
           URL="${{ github.event.inputs.url }}"
           echo "Downloading: $URL"
 
-          # Try yt-dlp first (videos)
-          yt-dlp --no-overwrites -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+          FORMAT="${{ github.event.inputs.format }}"
+          QUALITY="${{ github.event.inputs.quality }}"
+
+          if [ "$FORMAT" = "audio" ]; then
+            # Audio only - extract as MP3
+            yt-dlp --no-overwrites -x --audio-format mp3 -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+          elif [ "$QUALITY" = "best" ]; then
+            yt-dlp --no-overwrites --merge-output-format mp4 -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+          else
+            yt-dlp --no-overwrites --merge-output-format mp4 -f "bv*[height<=${QUALITY}]+ba/b[height<=${QUALITY}]" -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+          fi
 
           # If no files from yt-dlp, try direct download (images, docs, presentations, etc)
           if [ -z "$(ls -A videos/ 2>/dev/null)" ]; then
