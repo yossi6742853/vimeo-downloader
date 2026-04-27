@@ -1,4 +1,4 @@
-name: Download Video Test
+name: Download Video
 on:
   workflow_dispatch:
     inputs:
@@ -14,32 +14,113 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install yt-dlp and deno
+      - name: Install tools
         run: |
           pip install -U yt-dlp
           curl -fsSL https://deno.land/install.sh | sh
           echo "$HOME/.deno/bin" >> $GITHUB_PATH
+          # Install playwright for cookie extraction
+          pip install playwright
+          playwright install chromium
 
-      - name: Download video
+      - name: Get cookies via Playwright and download
         run: |
           mkdir -p videos
-          echo "Downloading: ${{ github.event.inputs.url }}"
-          yt-dlp \
-            --no-overwrites \
-            --merge-output-format mp4 \
-            -f "bv*[height<=720]+ba/b[height<=720]" \
-            --extractor-args "youtube:player_client=mweb" \
-            -o "videos/%(title)s [%(id)s].%(ext)s" \
-            "${{ github.event.inputs.url }}" 2>&1 || \
-          yt-dlp \
-            --no-overwrites \
-            --merge-output-format mp4 \
-            -f "bv*[height<=720]+ba/b[height<=720]" \
-            --extractor-args "youtube:player_client=android" \
-            -o "videos/%(title)s [%(id)s].%(ext)s" \
-            "${{ github.event.inputs.url }}" 2>&1
+
+          # Use playwright to get YouTube cookies
+          python3 << 'PYEOF'
+          import subprocess, sys
+
+          url = "${{ github.event.inputs.url }}"
+          print(f"Downloading: {url}")
+
+          # First try: yt-dlp with deno (simplest)
+          r = subprocess.run([
+              "yt-dlp", "--no-overwrites",
+              "--merge-output-format", "mp4",
+              "-f", "bv*[height<=720]+ba/b[height<=720]",
+              "-o", "videos/%(title)s [%(id)s].%(ext)s",
+              url
+          ], capture_output=True, text=True)
+
+          if r.returncode == 0:
+              print("SUCCESS with yt-dlp direct!")
+              sys.exit(0)
+
+          print(f"Direct failed: {r.stderr[-300:]}")
+          print("Trying with Playwright cookies...")
+
+          # Extract cookies using Playwright
+          from playwright.sync_api import sync_playwright
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              ctx = browser.new_context(
+                  user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+              )
+              page = ctx.new_page()
+
+              # Visit YouTube to get cookies
+              print("Visiting YouTube...")
+              page.goto("https://www.youtube.com", wait_until="domcontentloaded", timeout=30000)
+              page.wait_for_timeout(3000)
+
+              # Accept cookies if prompted
+              try:
+                  page.click("button:has-text('Accept')", timeout=3000)
+              except:
+                  pass
+
+              # Save cookies in Netscape format
+              cookies = ctx.cookies()
+              with open("/tmp/cookies.txt", "w") as f:
+                  f.write("# Netscape HTTP Cookie File\n")
+                  for c in cookies:
+                      secure = "TRUE" if c.get("secure") else "FALSE"
+                      domain = c.get("domain", "")
+                      path = c.get("path", "/")
+                      name = c.get("name", "")
+                      value = c.get("value", "")
+                      expiry = str(int(c.get("expires", 0)))
+                      http_only = "TRUE" if domain.startswith(".") else "FALSE"
+                      f.write(f"{domain}\t{http_only}\t{path}\t{secure}\t{expiry}\t{name}\t{value}\n")
+
+              print(f"Got {len(cookies)} cookies")
+              browser.close()
+
+          # Retry with cookies
+          r2 = subprocess.run([
+              "yt-dlp", "--no-overwrites",
+              "--merge-output-format", "mp4",
+              "-f", "bv*[height<=720]+ba/b[height<=720]",
+              "--cookies", "/tmp/cookies.txt",
+              "-o", "videos/%(title)s [%(id)s].%(ext)s",
+              url
+          ], capture_output=True, text=True)
+
+          print(r2.stdout[-500:] if r2.stdout else "")
+          if r2.returncode != 0:
+              print(f"Cookie attempt failed: {r2.stderr[-500:]}")
+              # Last resort: try with android client
+              r3 = subprocess.run([
+                  "yt-dlp", "--no-overwrites",
+                  "--merge-output-format", "mp4",
+                  "-f", "bv*[height<=720]+ba/b[height<=720]",
+                  "--cookies", "/tmp/cookies.txt",
+                  "--extractor-args", "youtube:player_client=android_vr",
+                  "-o", "videos/%(title)s [%(id)s].%(ext)s",
+                  url
+              ], capture_output=True, text=True)
+              print(r3.stdout[-500:] if r3.stdout else "")
+              if r3.returncode != 0:
+                  print(f"All attempts failed: {r3.stderr[-300:]}")
+                  sys.exit(1)
+
+          print("SUCCESS!")
+          PYEOF
+
           echo "=== Files ==="
-          ls -lh videos/
+          ls -lh videos/ 2>/dev/null || echo "No files"
 
       - name: Upload to artifacts
         if: always()
