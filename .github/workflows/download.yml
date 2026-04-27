@@ -1,75 +1,40 @@
-name: Download Vimeo Videos
+name: Download Video Test
 on:
   workflow_dispatch:
     inputs:
-      batch:
-        description: 'Batch number (1-12, each batch=20 videos)'
+      url:
+        description: 'Video URL to download'
         required: true
-        default: '1'
+        default: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
 
 jobs:
   download:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install yt-dlp with impersonation
-        run: |
-          pip install -U yt-dlp
-          pip install curl_cffi
-          yt-dlp --list-impersonate-targets 2>&1 | head -5 || true
+      - name: Install yt-dlp
+        run: pip install -U yt-dlp
 
-      - name: Download videos from chazon-ish pages
+      - name: Download video
         run: |
           mkdir -p videos
-          BATCH=${{ github.event.inputs.batch }}
-          START=$(( (BATCH - 1) * 20 ))
-
-          echo "Batch $BATCH: videos $START to $((START+19))"
-
-          # Check impersonation
-          IMPERSONATE=""
-          if yt-dlp --list-impersonate-targets 2>/dev/null | grep -q chrome; then
-            IMPERSONATE="--impersonate chrome"
-            echo "Using Chrome impersonation"
-          else
-            echo "No impersonation available, using plain mode"
-          fi
-
-          # Read blocked URLs and process batch
-          idx=0
-          ok=0
-          fail=0
-          while IFS= read -r url; do
-            if [ $idx -ge $START ] && [ $idx -lt $((START + 20)) ]; then
-              echo ""
-              echo "=== [$((idx+1))] $url ==="
-              if yt-dlp \
-                $IMPERSONATE \
-                --no-overwrites \
-                --merge-output-format mp4 \
-                -f "bv*[height<=720]+ba/b[height<=720]" \
-                -o "videos/%(title)s [%(id)s].%(ext)s" \
-                "$url" 2>&1; then
-                ok=$((ok+1))
-              else
-                echo "FAILED: $url"
-                fail=$((fail+1))
-              fi
-            fi
-            idx=$((idx + 1))
-          done < blocked_urls.txt
-
-          echo ""
-          echo "=== Done! ==="
-          ls -lh videos/ 2>/dev/null || echo "No videos downloaded"
+          echo "Downloading: ${{ github.event.inputs.url }}"
+          yt-dlp \
+            --no-overwrites \
+            --merge-output-format mp4 \
+            -f "bv*[height<=720]+ba/b[height<=720]" \
+            -o "videos/%(title)s [%(id)s].%(ext)s" \
+            "${{ github.event.inputs.url }}" 2>&1
+          echo "=== Files ==="
+          ls -lh videos/
 
       - name: Upload to artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: chazon-ish-batch-${{ github.event.inputs.batch }}
+          name: downloaded-video
           path: videos/
           retention-days: 7
           if-no-files-found: warn
