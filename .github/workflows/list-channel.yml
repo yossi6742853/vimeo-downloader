@@ -1,0 +1,24 @@
+name: List Channel
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Channel handle (e.g. @ravfeivelzon)'
+        required: true
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Install
+        run: pip install -U yt-dlp
+      - name: List videos
+        run: |
+          yt-dlp --flat-playlist --print "%(id)s|%(title)s" "https://www.youtube.com/${{ github.event.inputs.channel }}/videos" > video_list.txt 2>&1 || true
+          echo "Total: $(wc -l < video_list.txt) videos"
+          cat video_list.txt
+      - name: Upload list
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-list
+          path: video_list.txt
