@@ -11,82 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - uses: actions/checkout@v4
       - name: Setup
         run: pip install -U yt-dlp requests
 
       - name: Download YouTube video
-        run: |
-          mkdir -p videos
-          python3 -c "
-          import requests, json, os, sys, subprocess
-
-          url = '${{ github.event.inputs.url }}'
-          vid = ''
-          if 'v=' in url: vid = url.split('v=')[1].split('&')[0]
-          elif 'youtu.be/' in url: vid = url.split('youtu.be/')[1].split('?')[0]
-          print(f'Video ID: {vid}')
-
-          ok = False
-
-          # Method 1: Piped instances
-          print('=== Piped ===')
-          for inst in ['pipedapi.kavin.rocks','pipedapi.adminforge.de','api.piped.privacydev.net']:
-              try:
-                  r = requests.get(f'https://{inst}/streams/{vid}', timeout=15)
-                  if r.status_code != 200: continue
-                  data = r.json()
-                  streams = data.get('videoStreams', [])
-                  print(f'  {inst}: {len(streams)} streams')
-                  best = None
-                  for s in streams:
-                      if not s.get('videoOnly', True):
-                          best = s; break
-                  if not best and streams: best = streams[0]
-                  if best:
-                      print(f'  Downloading: {best.get(\"quality\",\"\")}')
-                      r2 = requests.get(best['url'], stream=True, timeout=300)
-                      with open('videos/youtube_video.mp4', 'wb') as f:
-                          for chunk in r2.iter_content(8192): f.write(chunk)
-                      size = os.path.getsize('videos/youtube_video.mp4')
-                      if size > 10000:
-                          print(f'  OK: {size/1024/1024:.1f} MB')
-                          ok = True; break
-              except Exception as e:
-                  print(f'  {inst}: {e}')
-
-          # Method 2: Invidious
-          if not ok:
-              print('=== Invidious ===')
-              for inst in ['inv.nadeko.net','invidious.nerdvpn.de','invidious.privacyredirect.com']:
-                  try:
-                      r = requests.get(f'https://{inst}/api/v1/videos/{vid}', timeout=15)
-                      if r.status_code != 200: continue
-                      data = r.json()
-                      fmts = data.get('formatStreams', [])
-                      print(f'  {inst}: {len(fmts)} formats')
-                      for fmt in fmts:
-                          dl_url = fmt.get('url','')
-                          if dl_url:
-                              r2 = requests.get(dl_url, stream=True, timeout=300)
-                              with open('videos/youtube_video.mp4', 'wb') as f:
-                                  for chunk in r2.iter_content(8192): f.write(chunk)
-                              size = os.path.getsize('videos/youtube_video.mp4')
-                              if size > 10000:
-                                  print(f'  OK: {size/1024/1024:.1f} MB')
-                                  ok = True; break
-                      if ok: break
-                  except Exception as e:
-                      print(f'  {inst}: {e}')
-
-          # Method 3: yt-dlp
-          if not ok:
-              print('=== yt-dlp ===')
-              subprocess.run(['yt-dlp','--no-overwrites','-o','videos/%(title)s.%(ext)s',url])
-
-          files = os.listdir('videos')
-          print(f'Files: {files}')
-          sys.exit(0 if files else 1)
-          "
+        run: python3 youtube_download.py "${{ github.event.inputs.url }}"
 
       - name: Upload to Google Drive
         if: success()
