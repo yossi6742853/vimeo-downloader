@@ -28,6 +28,14 @@ jobs:
             --no-overwrites \
             --merge-output-format mp4 \
             -f "bv*[height<=720]+ba/b[height<=720]" \
+            --extractor-args "youtube:player_client=mweb" \
+            -o "videos/%(title)s [%(id)s].%(ext)s" \
+            "${{ github.event.inputs.url }}" 2>&1 || \
+          yt-dlp \
+            --no-overwrites \
+            --merge-output-format mp4 \
+            -f "bv*[height<=720]+ba/b[height<=720]" \
+            --extractor-args "youtube:player_client=android" \
             -o "videos/%(title)s [%(id)s].%(ext)s" \
             "${{ github.event.inputs.url }}" 2>&1
           echo "=== Files ==="
