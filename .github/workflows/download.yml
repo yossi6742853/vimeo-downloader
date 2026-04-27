@@ -16,7 +16,9 @@ jobs:
 
       - name: Install yt-dlp with impersonation
         run: |
-          pip install yt-dlp curl_cffi
+          pip install -U yt-dlp
+          pip install curl_cffi
+          yt-dlp --list-impersonate-targets 2>&1 | head -5 || true
 
       - name: Download videos from chazon-ish pages
         run: |
@@ -26,20 +28,35 @@ jobs:
 
           echo "Batch $BATCH: videos $START to $((START+19))"
 
+          # Check impersonation
+          IMPERSONATE=""
+          if yt-dlp --list-impersonate-targets 2>/dev/null | grep -q chrome; then
+            IMPERSONATE="--impersonate chrome"
+            echo "Using Chrome impersonation"
+          else
+            echo "No impersonation available, using plain mode"
+          fi
+
           # Read blocked URLs and process batch
           idx=0
+          ok=0
+          fail=0
           while IFS= read -r url; do
             if [ $idx -ge $START ] && [ $idx -lt $((START + 20)) ]; then
               echo ""
               echo "=== [$((idx+1))] $url ==="
-              yt-dlp \
-                --impersonate "chrome" \
+              if yt-dlp \
+                $IMPERSONATE \
                 --no-overwrites \
                 --merge-output-format mp4 \
                 -f "bv*[height<=720]+ba/b[height<=720]" \
                 -o "videos/%(title)s [%(id)s].%(ext)s" \
-                "$url" \
-                || echo "FAILED: $url"
+                "$url" 2>&1; then
+                ok=$((ok+1))
+              else
+                echo "FAILED: $url"
+                fail=$((fail+1))
+              fi
             fi
             idx=$((idx + 1))
           done < blocked_urls.txt
