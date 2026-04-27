@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       channel:
-        description: 'Channel handle or search query'
+        description: 'Channel ID'
         required: true
 jobs:
   list:
@@ -12,25 +12,14 @@ jobs:
     steps:
       - name: Install
         run: pip install -U yt-dlp
-      - name: Find and list videos
+      - name: List all videos
         run: |
-          echo "=== Searching for channel ==="
-          # Try multiple channel URL formats
-          for prefix in "https://www.youtube.com/" "https://www.youtube.com/c/" "https://www.youtube.com/channel/"; do
-            URL="${prefix}${{ github.event.inputs.channel }}/videos"
-            echo "Trying: $URL"
-            yt-dlp --flat-playlist --print "%(id)s|%(title)s|%(channel_url)s" "$URL" > video_list.txt 2>&1 && break || true
-          done
-          
-          # If still empty, try search
-          if [ ! -s video_list.txt ] || grep -q "ERROR" video_list.txt; then
-            echo "Direct URL failed, trying search..."
-            yt-dlp --flat-playlist --print "%(id)s|%(title)s|%(channel_url)s" "ytsearch50:הרב פייבלזון שליטא" > video_list.txt 2>&1 || true
-          fi
-          
-          echo "=== Results ==="
-          wc -l video_list.txt
-          cat video_list.txt
+          yt-dlp --flat-playlist --print "%(id)s|%(title)s" \
+            "https://www.youtube.com/channel/${{ github.event.inputs.channel }}/videos" \
+            > video_list.txt 2>errors.txt || true
+          echo "Total: $(wc -l < video_list.txt) videos"
+          echo "=== Errors ==="
+          cat errors.txt
       - name: Upload list
         uses: actions/upload-artifact@v4
         with:
