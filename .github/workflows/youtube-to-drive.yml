@@ -1,0 +1,107 @@
+name: YouTube to Drive
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'YouTube URL'
+        required: true
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Download via Cobalt API
+        run: |
+          mkdir -p videos
+
+          # Method 1: Cobalt API (third-party YouTube downloader)
+          echo "=== Trying Cobalt API ==="
+          RESP=$(curl -s -X POST "https://api.cobalt.tools/api/json" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d "{\"url\":\"${{ github.event.inputs.url }}\",\"vQuality\":\"720\"}")
+          echo "Cobalt response: $RESP"
+
+          DOWNLOAD_URL=$(echo "$RESP" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('url',''))" 2>/dev/null)
+
+          if [ -n "$DOWNLOAD_URL" ] && [ "$DOWNLOAD_URL" != "" ]; then
+            echo "Downloading from Cobalt: $DOWNLOAD_URL"
+            curl -L -o "videos/youtube_video.mp4" "$DOWNLOAD_URL" --max-time 300
+          else
+            echo "Cobalt failed, trying other methods..."
+
+            # Method 2: Try various Piped instances
+            for instance in "pipedapi.kavin.rocks" "pipedapi.adminforge.de" "api.piped.privacydev.net"; do
+              echo "Trying Piped: $instance"
+              VIDEO_ID=$(echo "${{ github.event.inputs.url }}" | grep -oP 'v=\K[^&]+' || echo "${{ github.event.inputs.url }}" | grep -oP 'youtu\.be/\K[^?]+')
+              RESP=$(curl -s "https://$instance/streams/$VIDEO_ID" --max-time 10)
+              STREAM_URL=$(echo "$RESP" | python3 -c "
+          import sys,json
+          try:
+            d=json.load(sys.stdin)
+            streams=d.get('videoStreams',[])
+            for s in streams:
+              if s.get('quality','')=='720p' and s.get('format','')=='MPEG_4':
+                print(s['url']); break
+            else:
+              if streams: print(streams[0]['url'])
+          except: pass
+          " 2>/dev/null)
+
+              if [ -n "$STREAM_URL" ]; then
+                echo "Found stream URL from $instance!"
+                curl -L -o "videos/youtube_video.mp4" "$STREAM_URL" --max-time 300
+                break
+              fi
+            done
+          fi
+
+          # Method 3: yt-dlp as last resort
+          if [ ! -s "videos/youtube_video.mp4" ]; then
+            echo "=== Trying yt-dlp ==="
+            pip install -U yt-dlp 2>/dev/null
+            yt-dlp --no-overwrites -o "videos/%(title)s.%(ext)s" "${{ github.event.inputs.url }}" 2>&1 || true
+          fi
+
+          echo "=== Files ==="
+          ls -lh videos/ || echo "No files"
+
+      - name: Upload to Google Drive
+        env:
+          CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+        run: |
+          python3 << 'PYEOF'
+          import requests, os, glob
+
+          token = requests.post("https://oauth2.googleapis.com/token", data={
+              "client_id": os.environ["CLIENT_ID"],
+              "client_secret": os.environ["CLIENT_SECRET"],
+              "refresh_token": os.environ["REFRESH_TOKEN"],
+              "grant_type": "refresh_token"
+          }).json()["access_token"]
+          headers = {"Authorization": f"Bearer {token}"}
+
+          r = requests.get("https://www.googleapis.com/drive/v3/files",
+              params={"q": "name='סרטונים שהורדו' and mimeType='application/vnd.google-apps.folder' and trashed=false", "fields": "files(id)"},
+              headers=headers)
+          files = r.json().get("files", [])
+          folder_id = files[0]["id"] if files else requests.post("https://www.googleapis.com/drive/v3/files",
+              headers={**headers, "Content-Type": "application/json"},
+              json={"name": "סרטונים שהורדו", "mimeType": "application/vnd.google-apps.folder"}).json()["id"]
+
+          for fpath in glob.glob("videos/*"):
+              size = os.path.getsize(fpath)
+              if size < 1000: continue
+              fname = os.path.basename(fpath)
+              print(f"Uploading: {fname} ({size/1024/1024:.1f} MB)")
+              r = requests.post("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable",
+                  headers={**headers, "Content-Type": "application/json"},
+                  json={"name": fname, "parents": [folder_id]})
+              if r.status_code == 200:
+                  with open(fpath, "rb") as f:
+                      r2 = requests.put(r.headers["Location"], data=f, headers={"Content-Type": "video/mp4"})
+                  print(f"{'SUCCESS' if r2.status_code==200 else 'FAILED'}: {r2.status_code}")
+          PYEOF
