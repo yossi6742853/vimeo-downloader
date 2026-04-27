@@ -120,12 +120,12 @@
         <div class="modal-dialog"><div class="modal-content">
             <div class="modal-header"><h5 class="modal-title">הגדרה ראשונית</h5></div>
             <div class="modal-body">
-                <p>צריך GitHub Token פעם אחת בלבד:</p>
-                <ol class="small">
-                    <li>לך ל: <a href="https://github.com/settings/tokens" target="_blank">github.com/settings/tokens</a></li>
-                    <li>Generate new token (classic)</li>
-                    <li>סמן: <code>repo</code> + <code>workflow</code></li>
-                    <li>העתק את ה-Token</li>
+                <p>הגדרה חד-פעמית (פעם אחת בלבד!):</p>
+                <ol>
+                    <li>לחץ על הכפתור הזה: <a href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=Video+Downloader" target="_blank" class="btn btn-sm btn-primary">צור Token</a></li>
+                    <li>בדף שנפתח, גלול למטה ולחץ <strong>Generate token</strong></li>
+                    <li>העתק את הקוד שמתחיל ב-<code>ghp_</code></li>
+                    <li>הדבק כאן:</li>
                 </ol>
                 <input type="text" id="tokenInput" class="form-control" placeholder="ghp_..." dir="ltr">
             </div>
@@ -160,6 +160,11 @@
             GH_TOKEN = document.getElementById('tokenInput').value.trim();
             localStorage.setItem('gh_token', GH_TOKEN);
             bootstrap.Modal.getInstance(document.getElementById('setupModal')).hide();
+        }
+
+        // Auto-login check
+        if (!GH_TOKEN) {
+            // Show setup on first visit after PIN
         }
 
         // Tabs
