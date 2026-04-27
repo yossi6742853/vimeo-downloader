@@ -1,0 +1,71 @@
+name: Download to Drive
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Video URL to download'
+        required: true
+
+env:
+  CLIENT_ID: "1072944905499-vm2v2i5dvn0a0d2o4ca36i1vge8cvbn0.apps.googleusercontent.com"
+  CLIENT_SECRET: "v6V3fKV_zWU7iw1DrpO1rknX"
+  REFRESH_TOKEN: "1//03doYP5sR8165CgYIARAAGAMSNwF-L9Irwt3jH4FHlYkKBcdcEr_DCirl7AWT7Uxf36-gUtqITAWqJx-vLRNyMcDprd91JtFuhLc"
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Install yt-dlp
+        run: pip install -U yt-dlp
+
+      - name: Download video
+        run: |
+          mkdir -p videos
+          yt-dlp \
+            --no-overwrites \
+            -o "videos/%(title)s.%(ext)s" \
+            "${{ github.event.inputs.url }}" 2>&1
+          echo "=== Files ==="
+          ls -lh videos/
+
+      - name: Upload to Google Drive
+        run: |
+          # Get access token
+          TOKEN=$(curl -s -X POST "https://oauth2.googleapis.com/token" \
+            -d "client_id=$CLIENT_ID" \
+            -d "client_secret=$CLIENT_SECRET" \
+            -d "refresh_token=$REFRESH_TOKEN" \
+            -d "grant_type=refresh_token" | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+
+          # Find or create folder
+          FOLDER_ID=$(curl -s \
+            "https://www.googleapis.com/drive/v3/files?q=name='סרטונים%20שהורדו'%20and%20mimeType='application/vnd.google-apps.folder'%20and%20trashed=false&fields=files(id)" \
+            -H "Authorization: Bearer $TOKEN" | python3 -c "import sys,json;files=json.load(sys.stdin).get('files',[]);print(files[0]['id'] if files else '')")
+
+          if [ -z "$FOLDER_ID" ]; then
+            FOLDER_ID=$(curl -s -X POST \
+              "https://www.googleapis.com/drive/v3/files" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"name":"סרטונים שהורדו","mimeType":"application/vnd.google-apps.folder"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['id'])")
+            echo "Created folder: $FOLDER_ID"
+          fi
+          echo "Drive folder: $FOLDER_ID"
+
+          # Upload each file
+          for f in videos/*; do
+            if [ -f "$f" ]; then
+              FILENAME=$(basename "$f")
+              SIZE=$(stat -c%s "$f")
+              echo "Uploading: $FILENAME ($((SIZE/1024/1024)) MB)"
+
+              curl -s -X POST \
+                "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart" \
+                -H "Authorization: Bearer $TOKEN" \
+                -F "metadata={\"name\":\"$FILENAME\",\"parents\":[\"$FOLDER_ID\"]};type=application/json" \
+                -F "file=@$f" | python3 -c "import sys,json;d=json.load(sys.stdin);print('Uploaded:',d.get('name','?'),'ID:',d.get('id','?'))"
+            fi
+          done
+
+          echo "=== Done! Check Google Drive folder: סרטונים שהורדו ==="
