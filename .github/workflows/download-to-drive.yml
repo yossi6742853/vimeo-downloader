@@ -31,44 +31,59 @@ jobs:
 
       - name: Upload to Google Drive
         run: |
-          # Get access token
-          echo "Getting OAuth token..."
-          RESP=$(curl -s -X POST "https://oauth2.googleapis.com/token" \
-            -d "client_id=${{ env.CLIENT_ID }}" \
-            -d "client_secret=${{ env.CLIENT_SECRET }}" \
-            -d "refresh_token=${{ env.REFRESH_TOKEN }}" \
-            -d "grant_type=refresh_token")
-          echo "Token response length: ${#RESP}"
-          TOKEN=$(echo "$RESP" | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+          python3 << 'PYEOF'
+          import requests, json, os, glob
+
+          CLIENT_ID = "${{ env.CLIENT_ID }}"
+          CLIENT_SECRET = "${{ env.CLIENT_SECRET }}"
+          REFRESH_TOKEN = "${{ env.REFRESH_TOKEN }}"
+
+          # Get token
+          resp = requests.post("https://oauth2.googleapis.com/token", data={
+              "client_id": CLIENT_ID,
+              "client_secret": CLIENT_SECRET,
+              "refresh_token": REFRESH_TOKEN,
+              "grant_type": "refresh_token"
+          })
+          token = resp.json()["access_token"]
+          print(f"Got token: {token[:20]}...")
+          headers = {"Authorization": f"Bearer {token}"}
 
           # Find or create folder
-          FOLDER_ID=$(curl -s \
-            "https://www.googleapis.com/drive/v3/files?q=name='סרטונים%20שהורדו'%20and%20mimeType='application/vnd.google-apps.folder'%20and%20trashed=false&fields=files(id)" \
-            -H "Authorization: Bearer $TOKEN" | python3 -c "import sys,json;files=json.load(sys.stdin).get('files',[]);print(files[0]['id'] if files else '')")
+          r = requests.get("https://www.googleapis.com/drive/v3/files",
+              params={"q": "name='סרטונים שהורדו' and mimeType='application/vnd.google-apps.folder' and trashed=false", "fields": "files(id)"},
+              headers=headers)
+          files = r.json().get("files", [])
+          if files:
+              folder_id = files[0]["id"]
+          else:
+              r = requests.post("https://www.googleapis.com/drive/v3/files",
+                  headers={**headers, "Content-Type": "application/json"},
+                  json={"name": "סרטונים שהורדו", "mimeType": "application/vnd.google-apps.folder"})
+              folder_id = r.json()["id"]
+          print(f"Folder: {folder_id}")
 
-          if [ -z "$FOLDER_ID" ]; then
-            FOLDER_ID=$(curl -s -X POST \
-              "https://www.googleapis.com/drive/v3/files" \
-              -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json" \
-              -d '{"name":"סרטונים שהורדו","mimeType":"application/vnd.google-apps.folder"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['id'])")
-            echo "Created folder: $FOLDER_ID"
-          fi
-          echo "Drive folder: $FOLDER_ID"
+          # Upload files
+          for fpath in glob.glob("videos/*"):
+              fname = os.path.basename(fpath)
+              size = os.path.getsize(fpath)
+              print(f"Uploading: {fname} ({size/1024/1024:.1f} MB)")
 
-          # Upload each file
-          for f in videos/*; do
-            if [ -f "$f" ]; then
-              FILENAME=$(basename "$f")
-              SIZE=$(stat -c%s "$f")
-              echo "Uploading: $FILENAME ($((SIZE/1024/1024)) MB)"
+              # Resumable upload
+              r = requests.post("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable",
+                  headers={**headers, "Content-Type": "application/json"},
+                  json={"name": fname, "parents": [folder_id]})
 
-              curl -s -X POST \
-                "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart" \
-                -H "Authorization: Bearer $TOKEN" \
-                -F "metadata={\"name\":\"$FILENAME\",\"parents\":[\"$FOLDER_ID\"]};type=application/json" \
-                -F "file=@$f" | python3 -c "import sys,json;d=json.load(sys.stdin);print('Uploaded:',d.get('name','?'),'ID:',d.get('id','?'))"
-            fi
-          done
+              if r.status_code == 200:
+                  upload_url = r.headers["Location"]
+                  with open(fpath, "rb") as f:
+                      r2 = requests.put(upload_url, data=f, headers={"Content-Type": "video/mp4"})
+                  if r2.status_code == 200:
+                      print(f"SUCCESS: {r2.json().get('name')} ID={r2.json().get('id')}")
+                  else:
+                      print(f"Upload failed: {r2.status_code} {r2.text[:200]}")
+              else:
+                  print(f"Init failed: {r.status_code} {r.text[:200]}")
 
-          echo "=== Done! Check Google Drive folder: סרטונים שהורדו ==="
+          print("=== Done! Check Drive folder: סרטונים שהורדו ===")
+          PYEOF
