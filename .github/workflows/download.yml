@@ -23,10 +23,8 @@ jobs:
           mkdir -p videos
           yt-dlp \
             --no-overwrites \
-            --merge-output-format mp4 \
-            -f "bv*[height<=${{ github.event.inputs.quality }}]+ba/b[height<=${{ github.event.inputs.quality }}]" \
             -o "videos/%(title)s [%(id)s].%(ext)s" \
-            "${{ github.event.inputs.url }}" 2>&1
+            "${{ github.event.inputs.url }}" 2>&1 || true
           echo "=== Files ==="
           ls -lh videos/
 
