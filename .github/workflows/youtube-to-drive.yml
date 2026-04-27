@@ -13,10 +13,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup
-        run: pip install -U yt-dlp requests
+        run: |
+          pip install -U yt-dlp requests playwright
+          playwright install chromium
 
       - name: Download YouTube video
-        run: python3 youtube_download.py "${{ github.event.inputs.url }}"
+        run: |
+          python3 youtube_playwright.py "${{ github.event.inputs.url }}" || \
+          python3 youtube_download.py "${{ github.event.inputs.url }}"
 
       - name: Upload to Google Drive
         if: success()
