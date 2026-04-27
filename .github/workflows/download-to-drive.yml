@@ -17,14 +17,25 @@ jobs:
           curl -fsSL https://deno.land/install.sh | sh
           echo "$HOME/.deno/bin" >> $GITHUB_PATH
 
-      - name: Download video
+      - name: Download content
         run: |
           mkdir -p videos
-          echo "Downloading: ${{ github.event.inputs.url }}"
-          yt-dlp \
-            --no-overwrites \
-            -o "videos/%(title)s.%(ext)s" \
-            "${{ github.event.inputs.url }}" 2>&1 || true
+          URL="${{ github.event.inputs.url }}"
+          echo "Downloading: $URL"
+
+          # Try yt-dlp first (videos)
+          yt-dlp --no-overwrites -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+
+          # If no files from yt-dlp, try direct download (images, docs, presentations, etc)
+          if [ -z "$(ls -A videos/ 2>/dev/null)" ]; then
+            echo "yt-dlp failed, trying direct download..."
+            FILENAME=$(basename "$URL" | head -c 200)
+            # Clean filename
+            FILENAME=$(echo "$FILENAME" | sed 's/[?#].*//')
+            [ -z "$FILENAME" ] && FILENAME="download"
+            curl -L -o "videos/$FILENAME" "$URL" --max-time 300 -H "User-Agent: Mozilla/5.0" 2>&1 || true
+          fi
+
           echo "=== Files ==="
           ls -lh videos/ || echo "No files"
 
@@ -65,8 +76,10 @@ jobs:
                   headers={**headers, "Content-Type": "application/json"},
                   json={"name": fname, "parents": [folder_id]})
               if r.status_code == 200:
+                  import mimetypes
+                  mime = mimetypes.guess_type(fname)[0] or "application/octet-stream"
                   with open(fpath, "rb") as f:
-                      r2 = requests.put(r.headers["Location"], data=f, headers={"Content-Type": "video/mp4"})
+                      r2 = requests.put(r.headers["Location"], data=f, headers={"Content-Type": mime})
                   print(f"{'SUCCESS' if r2.status_code==200 else 'FAILED'}: {r2.status_code}")
               else:
                   print(f"Init failed: {r.status_code}")
