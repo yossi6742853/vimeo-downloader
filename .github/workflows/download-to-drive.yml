@@ -6,84 +6,68 @@ on:
         description: 'Video URL to download'
         required: true
 
-env:
-  CLIENT_ID: "1072944905499-vm2v2i5dvn0a0d2o4ca36i1vge8cvbn0.apps.googleusercontent.com"
-  CLIENT_SECRET: "v6V3fKV_zWU7iw1DrpO1rknX"
-  REFRESH_TOKEN: "1//03doYP5sR8165CgYIARAAGAMSNwF-L9Irwt3jH4FHlYkKBcdcEr_DCirl7AWT7Uxf36-gUtqITAWqJx-vLRNyMcDprd91JtFuhLc"
-
 jobs:
   download:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Install yt-dlp
-        run: pip install -U yt-dlp
+      - name: Install tools
+        run: |
+          pip install -U yt-dlp
+          curl -fsSL https://deno.land/install.sh | sh
+          echo "$HOME/.deno/bin" >> $GITHUB_PATH
 
       - name: Download video
         run: |
           mkdir -p videos
+          echo "Downloading: ${{ github.event.inputs.url }}"
           yt-dlp \
             --no-overwrites \
             -o "videos/%(title)s.%(ext)s" \
-            "${{ github.event.inputs.url }}" 2>&1
+            "${{ github.event.inputs.url }}" 2>&1 || true
           echo "=== Files ==="
-          ls -lh videos/
+          ls -lh videos/ || echo "No files"
 
       - name: Upload to Google Drive
+        env:
+          CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
         run: |
           python3 << 'PYEOF'
           import requests, json, os, glob
 
-          CLIENT_ID = "${{ env.CLIENT_ID }}"
-          CLIENT_SECRET = "${{ env.CLIENT_SECRET }}"
-          REFRESH_TOKEN = "${{ env.REFRESH_TOKEN }}"
-
-          # Get token
-          resp = requests.post("https://oauth2.googleapis.com/token", data={
-              "client_id": CLIENT_ID,
-              "client_secret": CLIENT_SECRET,
-              "refresh_token": REFRESH_TOKEN,
+          token_resp = requests.post("https://oauth2.googleapis.com/token", data={
+              "client_id": os.environ["CLIENT_ID"],
+              "client_secret": os.environ["CLIENT_SECRET"],
+              "refresh_token": os.environ["REFRESH_TOKEN"],
               "grant_type": "refresh_token"
           })
-          token = resp.json()["access_token"]
-          print(f"Got token: {token[:20]}...")
+          token = token_resp.json()["access_token"]
           headers = {"Authorization": f"Bearer {token}"}
 
-          # Find or create folder
           r = requests.get("https://www.googleapis.com/drive/v3/files",
               params={"q": "name='סרטונים שהורדו' and mimeType='application/vnd.google-apps.folder' and trashed=false", "fields": "files(id)"},
               headers=headers)
           files = r.json().get("files", [])
-          if files:
-              folder_id = files[0]["id"]
-          else:
-              r = requests.post("https://www.googleapis.com/drive/v3/files",
-                  headers={**headers, "Content-Type": "application/json"},
-                  json={"name": "סרטונים שהורדו", "mimeType": "application/vnd.google-apps.folder"})
-              folder_id = r.json()["id"]
-          print(f"Folder: {folder_id}")
+          folder_id = files[0]["id"] if files else requests.post("https://www.googleapis.com/drive/v3/files",
+              headers={**headers, "Content-Type": "application/json"},
+              json={"name": "סרטונים שהורדו", "mimeType": "application/vnd.google-apps.folder"}).json()["id"]
 
-          # Upload files
           for fpath in glob.glob("videos/*"):
               fname = os.path.basename(fpath)
               size = os.path.getsize(fpath)
+              if size < 1000:
+                  print(f"Skipping tiny file: {fname} ({size} bytes)")
+                  continue
               print(f"Uploading: {fname} ({size/1024/1024:.1f} MB)")
-
-              # Resumable upload
               r = requests.post("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable",
                   headers={**headers, "Content-Type": "application/json"},
                   json={"name": fname, "parents": [folder_id]})
-
               if r.status_code == 200:
-                  upload_url = r.headers["Location"]
                   with open(fpath, "rb") as f:
-                      r2 = requests.put(upload_url, data=f, headers={"Content-Type": "video/mp4"})
-                  if r2.status_code == 200:
-                      print(f"SUCCESS: {r2.json().get('name')} ID={r2.json().get('id')}")
-                  else:
-                      print(f"Upload failed: {r2.status_code} {r2.text[:200]}")
+                      r2 = requests.put(r.headers["Location"], data=f, headers={"Content-Type": "video/mp4"})
+                  print(f"{'SUCCESS' if r2.status_code==200 else 'FAILED'}: {r2.status_code}")
               else:
-                  print(f"Init failed: {r.status_code} {r.text[:200]}")
-
-          print("=== Done! Check Drive folder: סרטונים שהורדו ===")
+                  print(f"Init failed: {r.status_code}")
           PYEOF
