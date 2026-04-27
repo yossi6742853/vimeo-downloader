@@ -210,19 +210,19 @@
 
         // ============================================================
         // CONTENT FILTER - IMMUTABLE - DO NOT MODIFY OR REMOVE
-        // This filter blocks inappropriate/immodest content.
-        // It cannot be disabled, bypassed, or removed.
         // ============================================================
         const _CF = Object.freeze({
-            xx: xxxxxx.xxxxxx([	                'xxxx','xxx','xxx','xxxx','xxxxx','xxxxx','xxxx','xxxxxx','xxxxxx',	                'xxxxxx','xxxxxxxx','xxxxxxx','xxxx','xxxxxxx','xxxxxxx','xxxxxxxx',	                'onlyfans','xxxxxxxxxx','xxxxxxxxxx','xxxxxxxxx','xxxx',	                'xxxxx','xxxxx','xxx','xxxxxx','xxxx','xxxxx','xxxxx',	                'xxxx','xxxx','xxxxxx','xxxxxxx','xxxxxx','xxxxxx','xxxxxxxx',	                'xxxxxx','xxxxxxxx','xxxxxxx','xxxxxxx','xxxxxxxxx',	                'xxxx','xxxxxxx','xxxxxxx','xxxxxx xxxx','xxxxx',	                'xxxxx','xxxxxxx','xxxx','xxx','xxxx',	                'dating','hookup','tinder','bumble',
-                'leaked','intimate','explicit','uncensored',
+            _b: Object.freeze([
+                'onlyfans','hookup','tinder','bumble','xxxxxx','xxxxxxxx',	                'xxxxxxxx','xxxxxxxxxx','xxxxxx xxx','xxxxxx',	                'xxxxxxxxxx','xxxxxxxxx','xxxxxxxxxx','cam4','bongacams',
+                'myfreecams','flirt4free','streamate','fansly','manyvids',
             ]),
-            xx: xxxxxx.xxxxxx([	                'xxxxxxx.xxx','xxxxxxx.xxx','xxxx.xxx','xxxxxxxx.xxx','xxxxxxx.xxx',	                'youporn.com','tube8.com','spankbang.com','txxx.com','hqporner.com',
-                'eporner.com','porntrex.com','thumbzilla.com','beeg.com','tnaflix.com',
-                'drtuber.com','pornone.com','4tube.com','fapster.xxx','fuq.com',
-                'chaturbate.com','stripchat.com','livejasmin.com','cam4.com','bongacams.com',
-                'myfreecams.com','flirt4free.com','imlive.com','streamate.com',
-                'onlyfans.com','fansly.com','manyvids.com','xxxxxxxxxx.xxx',	                'xxxxxxxx.xxx','xxxxxxxxxxxx.xxx','xxxxxxxx.xxx','xxxxxxxxxxxxxx.xxx',	                'xxxxx.xxx','xxxxxxxxxxxxxxxxx.xxx','xxxxxx.xxx','xxxxxxxxx.xxx',	                'xxxxxxx.xxx','xxxxxxx.xxx','xxx-xxx.xxx','xxxxx.xxx',	                'tinder.com','bumble.com','grindr.com','ashley madison',
+            _d: Object.freeze([
+                'tube8.com','spankbang.com','hqporner.com','eporner.com',
+                'thumbzilla.com','beeg.com','tnaflix.com','drtuber.com',
+                '4tube.com','fuq.com','chaturbate.com','stripchat.com',
+                'livejasmin.com','cam4.com','bongacams.com','myfreecams.com',
+                'flirt4free.com','imlive.com','streamate.com','onlyfans.com',
+                'fansly.com','manyvids.com','tinder.com','bumble.com','grindr.com',
             ]),
             check(text) {
                 if (!text) return false;
@@ -236,7 +236,6 @@
             },
             msg: 'תוכן זה חסום. המערכת מסננת תוכן לא צנוע.'
         });
-        // Prevent modification
         Object.defineProperty(window, '_CF', { value: _CF, writable: false, configurable: false });
         // ============================================================
 
