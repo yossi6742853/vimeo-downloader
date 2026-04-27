@@ -100,6 +100,12 @@
 
                         <!-- Tab: History -->
                         <div id="tab-history" class="p-4 d-none">
+                            <div class="d-flex justify-content-between mb-3">
+                                <h6 class="mb-0">הורדות אחרונות</h6>
+                                <button class="btn btn-sm btn-outline-danger" onclick="clearHistory()">
+                                    <i class="bi bi-trash me-1"></i>מחק הכל
+                                </button>
+                            </div>
                             <div id="historyList">
                                 <p class="text-muted text-center">אין הורדות עדיין</p>
                             </div>
@@ -299,19 +305,39 @@
             const list = JSON.parse(localStorage.getItem('dl_history') || '[]');
             const el = document.getElementById('historyList');
             if (!list.length) { el.innerHTML = '<p class="text-muted text-center">אין הורדות עדיין</p>'; return; }
-            el.innerHTML = list.map(h => `
+            el.innerHTML = list.map((h, i) => `
                 <div class="history-item p-2 mb-2 d-flex justify-content-between align-items-center">
-                    <div>
+                    <div class="flex-grow-1">
                         <small class="text-muted">${h.time}</small>
                         <span class="badge bg-secondary badge-source ms-1">${h.type}</span>
-                        <div class="small text-truncate" style="max-width:400px" dir="ltr">${h.url}</div>
+                        <div class="small text-truncate" style="max-width:350px" dir="ltr">${h.url}</div>
                     </div>
-                    <button class="btn btn-sm btn-outline-primary" onclick="startDownload('${h.url}')">
-                        <i class="bi bi-arrow-repeat"></i>
-                    </button>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="startDownload('${h.url}')" title="הורד שוב">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteHistory(${i})" title="מחק">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
                 </div>
             `).join('');
         }
+
+        function deleteHistory(index) {
+            const list = JSON.parse(localStorage.getItem('dl_history') || '[]');
+            list.splice(index, 1);
+            localStorage.setItem('dl_history', JSON.stringify(list));
+            renderHistory();
+        }
+
+        function clearHistory() {
+            if (confirm('למחוק את כל ההיסטוריה?')) {
+                localStorage.removeItem('dl_history');
+                renderHistory();
+            }
+        }
+
         renderHistory();
     </script>
 </body>
