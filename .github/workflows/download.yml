@@ -5,171 +5,36 @@ on:
       url:
         description: 'Video URL to download'
         required: true
-        default: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+      quality:
+        description: 'Quality (360/480/720)'
+        required: true
+        default: '480'
 
 jobs:
   download:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - name: Install yt-dlp
+        run: pip install -U yt-dlp
 
-      - name: Install tools
-        run: |
-          pip install -U yt-dlp playwright
-          playwright install chromium
-          curl -fsSL https://deno.land/install.sh | sh
-          echo "$HOME/.deno/bin" >> $GITHUB_PATH
-
-      - name: Download video with Playwright
+      - name: Download video
         run: |
           mkdir -p videos
-
-          python3 << 'PYEOF'
-          import subprocess, sys, time, re, json
-
-          url = "${{ github.event.inputs.url }}"
-          print(f"Target: {url}")
-
-          # Method 1: Use Playwright to intercept video stream URLs
-          from playwright.sync_api import sync_playwright
-
-          video_urls = []
-
-          def handle_response(response):
-              ct = response.headers.get("content-type", "")
-              url = response.url
-              if any(x in ct for x in ["video/", "audio/"]) or \
-                 any(x in url for x in [".mp4", ".webm", "videoplayback", "googlevideo.com"]):
-                  size = response.headers.get("content-length", "?")
-                  print(f"  FOUND: {ct} size={size} url={url[:120]}")
-                  video_urls.append({"url": url, "type": ct, "size": size})
-
-          print("\nMethod 1: Playwright intercept...")
-          try:
-              with sync_playwright() as p:
-                  browser = p.chromium.launch(headless=True)
-                  ctx = browser.new_context(
-                      user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-                  )
-                  page = ctx.new_page()
-                  page.on("response", handle_response)
-
-                  print("  Loading page...")
-                  page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                  page.wait_for_timeout(5000)
-
-                  # Try clicking play button if exists
-                  try:
-                      page.click("button.ytp-large-play-button", timeout=3000)
-                      page.wait_for_timeout(5000)
-                  except:
-                      pass
-
-                  # Save cookies for yt-dlp
-                  cookies = ctx.cookies()
-                  with open("/tmp/cookies.txt", "w") as f:
-                      f.write("# Netscape HTTP Cookie File\n")
-                      for c in cookies:
-                          secure = "TRUE" if c.get("secure") else "FALSE"
-                          domain = c.get("domain", "")
-                          path = c.get("path", "/")
-                          http_only = "TRUE" if domain.startswith(".") else "FALSE"
-                          expiry = str(int(c.get("expires", 0)))
-                          f.write(f"{domain}\t{http_only}\t{path}\t{secure}\t{expiry}\t{c['name']}\t{c['value']}\n")
-
-                  print(f"  Got {len(cookies)} cookies, {len(video_urls)} video URLs intercepted")
-                  browser.close()
-          except Exception as e:
-              print(f"  Playwright error: {e}")
-
-          # Download ALL intercepted video URLs
-          if video_urls:
-              print(f"\n  All intercepted URLs:")
-              for i, v in enumerate(video_urls):
-                  print(f"    [{i}] {v['type']} size={v['size']} url={v['url'][:100]}")
-
-              # Download video and audio separately, then merge
-              import urllib.request
-              dl_count = 0
-              for i, v in enumerate(video_urls):
-                  size = int(v.get("size", 0) or 0)
-                  if size < 10000:  # skip tiny files
-                      continue
-                  ext = "mp4" if "mp4" in v.get("type","") or "video" in v.get("type","") else "webm"
-                  fname = f"videos/part_{i}.{ext}"
-                  try:
-                      print(f"\n  Downloading part {i}: {v['type']} ({size} bytes)")
-                      urllib.request.urlretrieve(v["url"], fname)
-                      import os
-                      actual = os.path.getsize(fname)
-                      print(f"  Saved: {fname} ({actual/1024/1024:.1f} MB)")
-                      dl_count += 1
-                  except Exception as e:
-                      print(f"  Failed: {e}")
-
-              # Try merging with ffmpeg if we got video + audio
-              if dl_count >= 2:
-                  import glob
-                  parts = sorted(glob.glob("videos/part_*"))
-                  if len(parts) >= 2:
-                      subprocess.run(["ffmpeg", "-y", "-i", parts[0], "-i", parts[1],
-                                     "-c", "copy", "videos/merged.mp4"],
-                                    capture_output=True)
-                      if os.path.exists("videos/merged.mp4"):
-                          print(f"  Merged: videos/merged.mp4 ({os.path.getsize('videos/merged.mp4')/1024/1024:.1f} MB)")
-
-          # Method 2: yt-dlp with cookies from Playwright
-          print("\nMethod 2: yt-dlp with Playwright cookies...")
-          r = subprocess.run([
-              "yt-dlp", "--no-overwrites",
-              "--merge-output-format", "mp4",
-              "-f", "bv*[height<=720]+ba/b[height<=720]",
-              "--cookies", "/tmp/cookies.txt",
-              "-o", "videos/%(title)s [%(id)s].%(ext)s",
-              url
-          ], capture_output=True, text=True)
-          if r.returncode == 0:
-              print("SUCCESS with yt-dlp + cookies!")
-          else:
-              print(f"  Failed: {r.stderr[-200:]}")
-
-          # Method 3: yt-dlp with PO token from page
-          print("\nMethod 3: yt-dlp with different clients...")
-          for client in ["tv", "ios", "android_vr", "android_music"]:
-              print(f"  Trying client: {client}")
-              r = subprocess.run([
-                  "yt-dlp", "--no-overwrites",
-                  "--merge-output-format", "mp4",
-                  "-f", "bv*[height<=720]+ba/b[height<=720]",
-                  "--extractor-args", f"youtube:player_client={client}",
-                  "--cookies", "/tmp/cookies.txt",
-                  "-o", "videos/%(title)s [%(id)s].%(ext)s",
-                  url
-              ], capture_output=True, text=True)
-              if r.returncode == 0:
-                  print(f"  SUCCESS with client {client}!")
-                  break
-              else:
-                  err = r.stderr[-150:] if r.stderr else ""
-                  if "bot" not in err.lower() and "sign in" not in err.lower():
-                      print(f"  Different error: {err}")
-
-          import os
-          files = os.listdir("videos")
-          print(f"\n=== Result: {len(files)} files ===")
-          for f in files:
-              size = os.path.getsize(f"videos/{f}")
-              print(f"  {f} ({size/1024/1024:.1f} MB)")
-
-          sys.exit(0 if files else 1)
-          PYEOF
+          yt-dlp \
+            --no-overwrites \
+            --merge-output-format mp4 \
+            -f "bv*[height<=${{ github.event.inputs.quality }}]+ba/b[height<=${{ github.event.inputs.quality }}]" \
+            -o "videos/%(title)s [%(id)s].%(ext)s" \
+            "${{ github.event.inputs.url }}" 2>&1
+          echo "=== Files ==="
+          ls -lh videos/
 
       - name: Upload to artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: downloaded-video
+          name: video
           path: videos/
           retention-days: 7
           if-no-files-found: warn
