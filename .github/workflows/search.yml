@@ -1,0 +1,107 @@
+name: Search Videos
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Search query'
+        required: true
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Search video sites
+        run: |
+          pip install requests 2>/dev/null
+          python3 -c "
+          import requests, json, os
+
+          query = '${{ github.event.inputs.query }}'
+          results = []
+
+          # 1. Dailymotion
+          try:
+              r = requests.get('https://api.dailymotion.com/videos', params={
+                  'search': query, 'fields': 'id,title,thumbnail_240_url,duration,url',
+                  'limit': 15, 'sort': 'relevance'
+              }, timeout=10)
+              if r.status_code == 200:
+                  for v in r.json().get('list', []):
+                      results.append({
+                          'title': v.get('title',''),
+                          'url': v.get('url',''),
+                          'thumb': v.get('thumbnail_240_url',''),
+                          'duration': v.get('duration',0),
+                          'source': 'Dailymotion'
+                      })
+          except: pass
+
+          # 2. Archive.org
+          try:
+              r = requests.get('https://archive.org/advancedsearch.php', params={
+                  'q': query + ' mediatype:movies',
+                  'fl[]': 'identifier,title,description',
+                  'rows': 10, 'output': 'json'
+              }, timeout=10)
+              if r.status_code == 200:
+                  for doc in r.json().get('response',{}).get('docs',[]):
+                      results.append({
+                          'title': doc.get('title',''),
+                          'url': f\"https://archive.org/details/{doc.get('identifier','')}\",
+                          'thumb': f\"https://archive.org/services/img/{doc.get('identifier','')}\",
+                          'duration': 0,
+                          'source': 'Archive.org'
+                      })
+          except: pass
+
+          # 3. Vimeo
+          try:
+              r = requests.get(f'https://api.vimeo.com/videos?query={query}&per_page=10&sort=relevant',
+                  headers={'Authorization': 'Bearer unauthenticated', 'Accept': 'application/vnd.vimeo.*+json;version=3.4'},
+                  timeout=10)
+              if r.status_code == 200:
+                  for v in r.json().get('data', []):
+                      pics = v.get('pictures',{}).get('sizes',[])
+                      thumb = pics[2]['link'] if len(pics) > 2 else ''
+                      results.append({
+                          'title': v.get('name',''),
+                          'url': v.get('link',''),
+                          'thumb': thumb,
+                          'duration': v.get('duration',0),
+                          'source': 'Vimeo'
+                      })
+          except: pass
+
+          # 4. Hidabroot (scrape search page)
+          try:
+              r = requests.get(f'https://www.hidabroot.org/search', params={'q': query},
+                  headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+              if r.status_code == 200:
+                  import re
+                  links = re.findall(r'href=\"(/video/\d+)\"[^>]*>([^<]+)', r.text)
+                  seen = set()
+                  for link, title in links[:10]:
+                      if link not in seen:
+                          seen.add(link)
+                          results.append({
+                              'title': title.strip(),
+                              'url': f'https://www.hidabroot.org{link}',
+                              'thumb': '',
+                              'duration': 0,
+                              'source': 'הידברות'
+                          })
+          except: pass
+
+          print(f'Found {len(results)} results')
+          with open('search_results.json', 'w', encoding='utf-8') as f:
+              json.dump({'query': query, 'results': results}, f, ensure_ascii=False)
+          "
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: search-results
+          path: search_results.json
+          retention-days: 1

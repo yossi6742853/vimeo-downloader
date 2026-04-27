@@ -206,75 +206,98 @@
             document.getElementById('dlSpinner').style.display = isError ? 'none' : '';
         }
 
-        // Search
+        // Search - runs via GitHub Actions (bypasses NetFree)
         async function searchVideos() {
             const query = document.getElementById('searchInput').value.trim();
             if (!query) return;
+            if (!GH_TOKEN) { new bootstrap.Modal(document.getElementById('setupModal')).show(); return; }
 
             const results = document.getElementById('searchResults');
-            results.innerHTML = '<div class="text-center py-4"><div class="spinner-border"></div><p class="mt-2">מחפש...</p></div>';
+            results.innerHTML = '<div class="text-center py-4"><div class="spinner-border"></div><p class="mt-2">מחפש ב-Dailymotion, Vimeo, הידברות, Archive.org...</p><p class="small text-muted">החיפוש רץ על שרת חיצוני (עוקף נטפרי). ייקח כדקה.</p></div>';
 
             try {
-                // Use GitHub API to search (as a proxy to avoid NetFree blocks on search engines)
-                // Actually use DuckDuckGo lite which might work
-                const searchUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&per_page=1`;
+                // Trigger search workflow
+                await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/search.yml/dispatches`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' },
+                    body: JSON.stringify({ ref: 'master', inputs: { query: query } })
+                });
 
-                // Use a different approach: search via Google Custom Search or similar
-                // For now, search common video sites directly
-                const sites = [
-                    { name: 'הידברות', url: `https://www.hidabroot.org/search?q=${encodeURIComponent(query)}`, icon: 'bi-play-circle' },
-                    { name: 'Dailymotion', url: `https://api.dailymotion.com/videos?search=${encodeURIComponent(query)}&fields=id,title,thumbnail_240_url,duration,url&limit=10`, api: true },
-                ];
+                // Poll for results
+                await new Promise(r => setTimeout(r, 5000));
 
-                let html = '';
+                for (let i = 0; i < 24; i++) { // Wait up to 2 minutes
+                    await new Promise(r => setTimeout(r, 5000));
+                    try {
+                        const runsResp = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/search.yml/runs?per_page=1`, {
+                            headers: { 'Authorization': `token ${GH_TOKEN}` }
+                        });
+                        const runs = await runsResp.json();
+                        const run = runs.workflow_runs?.[0];
+                        if (!run) continue;
 
-                // Search Dailymotion API (usually not blocked)
-                try {
-                    const dmResp = await fetch(`https://api.dailymotion.com/videos?search=${encodeURIComponent(query)}&fields=id,title,thumbnail_240_url,duration,url,embed_url&limit=10`);
-                    if (dmResp.ok) {
-                        const dmData = await dmResp.json();
-                        if (dmData.list && dmData.list.length > 0) {
-                            html += '<h6 class="mb-3"><i class="bi bi-collection-play me-1"></i>תוצאות מ-Dailymotion</h6>';
-                            for (const v of dmData.list) {
-                                const mins = Math.floor((v.duration || 0) / 60);
-                                html += `
-                                <div class="video-result p-3 mb-2 d-flex align-items-center" onclick="startDownload('${v.url}')">
-                                    <img src="${v.thumbnail_240_url}" class="video-thumb me-3" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 160 90%22><rect fill=%22%23ddd%22 width=%22160%22 height=%2290%22/><text x=%2280%22 y=%2250%22 text-anchor=%22middle%22 fill=%22%23999%22>No Image</text></svg>'">
-                                    <div class="flex-grow-1">
-                                        <div class="fw-bold">${v.title}</div>
-                                        <small class="text-muted">${mins} דקות</small>
-                                        <span class="badge bg-info badge-source ms-2">Dailymotion</span>
-                                    </div>
-                                    <button class="btn btn-sm btn-download text-white" onclick="event.stopPropagation();startDownload('${v.url}')">
-                                        <i class="bi bi-download"></i>
-                                    </button>
-                                </div>`;
+                        if (run.status === 'completed') {
+                            if (run.conclusion === 'success') {
+                                // Get artifact
+                                const artResp = await fetch(run.artifacts_url, {
+                                    headers: { 'Authorization': `token ${GH_TOKEN}` }
+                                });
+                                const arts = await artResp.json();
+                                const art = arts.artifacts?.find(a => a.name === 'search-results');
+                                if (art) {
+                                    const dlResp = await fetch(art.archive_download_url, {
+                                        headers: { 'Authorization': `token ${GH_TOKEN}` }
+                                    });
+                                    const blob = await dlResp.blob();
+                                    // Artifact is a ZIP file
+                                    const zip = await blob.arrayBuffer();
+                                    // Parse ZIP (simple: find JSON between first { and last })
+                                    const text = new TextDecoder().decode(zip);
+                                    const jsonStart = text.indexOf('{"query"');
+                                    const jsonEnd = text.lastIndexOf('}') + 1;
+                                    if (jsonStart >= 0) {
+                                        const data = JSON.parse(text.substring(jsonStart, jsonEnd));
+                                        displayResults(data.results, query);
+                                        return;
+                                    }
+                                }
                             }
+                            results.innerHTML = '<p class="text-danger text-center">החיפוש נכשל. נסה שוב.</p>';
+                            return;
                         }
-                    }
-                } catch(e) { console.log('Dailymotion search failed:', e); }
-
-                // Search Hidabroot
-                html += `
-                <h6 class="mb-3 mt-4"><i class="bi bi-search me-1"></i>חיפוש באתרים נוספים</h6>
-                <div class="video-result p-3 mb-2" onclick="window.open('https://www.hidabroot.org/search?q=${encodeURIComponent(query)}','_blank')">
-                    <i class="bi bi-box-arrow-up-left me-2"></i>חפש "<strong>${query}</strong>" בהידברות
-                </div>
-                <div class="video-result p-3 mb-2" onclick="window.open('https://www.dailymotion.com/search/${encodeURIComponent(query)}','_blank')">
-                    <i class="bi bi-box-arrow-up-left me-2"></i>חפש "<strong>${query}</strong>" ב-Dailymotion
-                </div>
-                <div class="video-result p-3 mb-2" onclick="window.open('https://vimeo.com/search?q=${encodeURIComponent(query)}','_blank')">
-                    <i class="bi bi-box-arrow-up-left me-2"></i>חפש "<strong>${query}</strong>" ב-Vimeo
-                </div>
-                <div class="video-result p-3 mb-2" onclick="window.open('https://archive.org/search?query=${encodeURIComponent(query)}&mediatype=movies','_blank')">
-                    <i class="bi bi-box-arrow-up-left me-2"></i>חפש "<strong>${query}</strong>" ב-Internet Archive
-                </div>
-                <p class="text-muted small mt-3 text-center">מצאת סרטון? העתק את הקישור ← לשונית "הורדה ישירה" ← הורד לדרייב</p>`;
-
-                results.innerHTML = html || '<p class="text-muted text-center">לא נמצאו תוצאות</p>';
+                    } catch(e) { console.log('Poll error:', e); }
+                }
+                results.innerHTML = '<p class="text-warning text-center">החיפוש לקח יותר מדי זמן. נסה שוב.</p>';
             } catch(e) {
-                results.innerHTML = `<p class="text-danger text-center">שגיאה בחיפוש: ${e.message}</p>`;
+                results.innerHTML = `<p class="text-danger text-center">שגיאה: ${e.message}</p>`;
             }
+        }
+
+        function displayResults(videos, query) {
+            const el = document.getElementById('searchResults');
+            if (!videos || !videos.length) {
+                el.innerHTML = `<p class="text-muted text-center">לא נמצאו תוצאות עבור "${query}"</p>`;
+                return;
+            }
+            let html = `<p class="text-muted mb-3">נמצאו ${videos.length} תוצאות עבור "<strong>${query}</strong>"</p>`;
+            for (const v of videos) {
+                const mins = Math.floor((v.duration || 0) / 60);
+                const badge = {'Dailymotion':'bg-info','Vimeo':'bg-primary','הידברות':'bg-success','Archive.org':'bg-warning text-dark'}[v.source] || 'bg-secondary';
+                const thumbHtml = v.thumb ? `<img src="${v.thumb}" class="video-thumb me-3" onerror="this.style.display='none'">` : '<div class="video-thumb me-3 d-flex align-items-center justify-content-center bg-light"><i class="bi bi-film fs-3 text-muted"></i></div>';
+                html += `
+                <div class="video-result p-3 mb-2 d-flex align-items-center">
+                    ${thumbHtml}
+                    <div class="flex-grow-1">
+                        <div class="fw-bold">${v.title}</div>
+                        ${mins > 0 ? `<small class="text-muted">${mins} דקות</small>` : ''}
+                        <span class="badge ${badge} badge-source ms-2">${v.source}</span>
+                    </div>
+                    <button class="btn btn-sm btn-download text-white" onclick="startDownload('${v.url}')">
+                        <i class="bi bi-download me-1"></i>הורד
+                    </button>
+                </div>`;
+            }
+            el.innerHTML = html;
         }
 
         // History
