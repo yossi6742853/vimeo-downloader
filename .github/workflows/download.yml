@@ -83,20 +83,41 @@ jobs:
           except Exception as e:
               print(f"  Playwright error: {e}")
 
-          # Download intercepted video URLs directly
+          # Download ALL intercepted video URLs
           if video_urls:
-              # Pick biggest video
-              best = sorted(video_urls, key=lambda x: int(x.get("size", 0) or 0), reverse=True)
-              for v in best[:3]:
-                  print(f"\n  Downloading: {v['type']} ({v['size']} bytes)")
+              print(f"\n  All intercepted URLs:")
+              for i, v in enumerate(video_urls):
+                  print(f"    [{i}] {v['type']} size={v['size']} url={v['url'][:100]}")
+
+              # Download video and audio separately, then merge
+              import urllib.request
+              dl_count = 0
+              for i, v in enumerate(video_urls):
+                  size = int(v.get("size", 0) or 0)
+                  if size < 10000:  # skip tiny files
+                      continue
+                  ext = "mp4" if "mp4" in v.get("type","") or "video" in v.get("type","") else "webm"
+                  fname = f"videos/part_{i}.{ext}"
                   try:
-                      import urllib.request
-                      fname = f"videos/video.{'mp4' if 'mp4' in v['type'] else 'webm'}"
+                      print(f"\n  Downloading part {i}: {v['type']} ({size} bytes)")
                       urllib.request.urlretrieve(v["url"], fname)
-                      print(f"  Saved: {fname}")
-                      break
+                      import os
+                      actual = os.path.getsize(fname)
+                      print(f"  Saved: {fname} ({actual/1024/1024:.1f} MB)")
+                      dl_count += 1
                   except Exception as e:
-                      print(f"  Download failed: {e}")
+                      print(f"  Failed: {e}")
+
+              # Try merging with ffmpeg if we got video + audio
+              if dl_count >= 2:
+                  import glob
+                  parts = sorted(glob.glob("videos/part_*"))
+                  if len(parts) >= 2:
+                      subprocess.run(["ffmpeg", "-y", "-i", parts[0], "-i", parts[1],
+                                     "-c", "copy", "videos/merged.mp4"],
+                                    capture_output=True)
+                      if os.path.exists("videos/merged.mp4"):
+                          print(f"  Merged: videos/merged.mp4 ({os.path.getsize('videos/merged.mp4')/1024/1024:.1f} MB)")
 
           # Method 2: yt-dlp with cookies from Playwright
           print("\nMethod 2: yt-dlp with Playwright cookies...")
