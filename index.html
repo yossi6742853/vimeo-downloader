@@ -223,49 +223,30 @@
                     body: JSON.stringify({ ref: 'master', inputs: { query: query } })
                 });
 
-                // Poll for results
-                await new Promise(r => setTimeout(r, 5000));
-
-                for (let i = 0; i < 24; i++) { // Wait up to 2 minutes
+                // Poll for results - check the JSON file in the repo
+                for (let i = 0; i < 30; i++) {
                     await new Promise(r => setTimeout(r, 5000));
                     try {
+                        // Check if workflow completed
                         const runsResp = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/search.yml/runs?per_page=1`, {
                             headers: { 'Authorization': `token ${GH_TOKEN}` }
                         });
                         const runs = await runsResp.json();
                         const run = runs.workflow_runs?.[0];
-                        if (!run) continue;
-
-                        if (run.status === 'completed') {
-                            if (run.conclusion === 'success') {
-                                // Get artifact
-                                const artResp = await fetch(run.artifacts_url, {
-                                    headers: { 'Authorization': `token ${GH_TOKEN}` }
-                                });
-                                const arts = await artResp.json();
-                                const art = arts.artifacts?.find(a => a.name === 'search-results');
-                                if (art) {
-                                    const dlResp = await fetch(art.archive_download_url, {
-                                        headers: { 'Authorization': `token ${GH_TOKEN}` }
-                                    });
-                                    const blob = await dlResp.blob();
-                                    // Artifact is a ZIP file
-                                    const zip = await blob.arrayBuffer();
-                                    // Parse ZIP (simple: find JSON between first { and last })
-                                    const text = new TextDecoder().decode(zip);
-                                    const jsonStart = text.indexOf('{"query"');
-                                    const jsonEnd = text.lastIndexOf('}') + 1;
-                                    if (jsonStart >= 0) {
-                                        const data = JSON.parse(text.substring(jsonStart, jsonEnd));
-                                        displayResults(data.results, query);
-                                        return;
-                                    }
-                                }
+                        if (run?.status === 'completed') {
+                            // Fetch results JSON from repo
+                            const jsonResp = await fetch(`https://api.github.com/repos/${REPO}/contents/docs/search_results.json`, {
+                                headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3.raw' }
+                            });
+                            if (jsonResp.ok) {
+                                const data = await jsonResp.json();
+                                displayResults(data.results, query);
+                                return;
                             }
                             results.innerHTML = '<p class="text-danger text-center">החיפוש נכשל. נסה שוב.</p>';
                             return;
                         }
-                    } catch(e) { console.log('Poll error:', e); }
+                    } catch(e) { console.log('Poll:', e); }
                 }
                 results.innerHTML = '<p class="text-warning text-center">החיפוש לקח יותר מדי זמן. נסה שוב.</p>';
             } catch(e) {

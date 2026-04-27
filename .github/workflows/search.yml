@@ -99,9 +99,11 @@ jobs:
               json.dump({'query': query, 'results': results}, f, ensure_ascii=False)
           "
 
-      - name: Upload results
-        uses: actions/upload-artifact@v4
-        with:
-          name: search-results
-          path: search_results.json
-          retention-days: 1
+      - name: Publish results to repo
+        run: |
+          git config user.email "bot@github.com"
+          git config user.name "Search Bot"
+          cp search_results.json docs/search_results.json 2>/dev/null || mkdir -p docs && cp search_results.json docs/
+          git add docs/search_results.json
+          git commit -m "Search results: ${{ github.event.inputs.query }}" || true
+          git push || true
