@@ -116,6 +116,8 @@
         body.dark .recent-search{background:#2a2a4a;color:#ccc}
         body.dark .btn-paste{background:#2a2a4a;border-color:#3a3a5a;color:#ccc}
         body.dark .drop-overlay{background:rgba(30,30,50,0.9)}
+        body.dark #tab-settings [style*="background:#f8f9ff"]{background:#2a2a4a!important}
+        body.dark #tab-settings [style*="background:#fff5f5"]{background:#3a2020!important;border-color:#5a3030!important}
 
         /* Mobile responsive improvements */
         @media(max-width:576px){
@@ -200,6 +202,7 @@
                             <button class="tab-btn flex-fill" onclick="switchTab('favorites')" id="tabBtnFavorites"><i class="bi bi-star me-1"></i>מועדפים</button>
                             <button class="tab-btn flex-fill" onclick="switchTab('drive')" id="tabBtnDrive"><i class="bi bi-folder me-1"></i>דרייב</button>
                             <button class="tab-btn flex-fill" onclick="switchTab('history')" id="tabBtnHistory"><i class="bi bi-clock-history me-1"></i>היסטוריה</button>
+                            <button class="tab-btn flex-fill" onclick="switchTab('settings')" id="tabBtnSettings"><i class="bi bi-gear me-1"></i>הגדרות</button>
                         </div>
 
                         <div id="tab-download" class="tab-pane active-tab p-4">
@@ -312,6 +315,86 @@
                                 </div>
                             </div>
                             <div id="historyList"><p class="text-muted text-center">אין הורדות עדיין</p></div>
+                        </div>
+
+                        <!-- Tab: Settings -->
+                        <div id="tab-settings" class="tab-pane p-4">
+                            <h6 class="fw-bold mb-4"><i class="bi bi-gear me-1"></i>הגדרות</h6>
+
+                            <!-- Change PIN -->
+                            <div class="mb-4 p-3" style="background:#f8f9ff;border-radius:14px">
+                                <div class="fw-bold mb-2"><i class="bi bi-shield-lock me-1"></i>שינוי סיסמה</div>
+                                <div class="row g-2">
+                                    <div class="col-12"><input type="password" id="settOldPin" class="form-control form-control-sm" placeholder="סיסמה נוכחית" maxlength="4"></div>
+                                    <div class="col-6"><input type="password" id="settNewPin" class="form-control form-control-sm" placeholder="סיסמה חדשה" maxlength="4"></div>
+                                    <div class="col-6"><input type="password" id="settConfirmPin" class="form-control form-control-sm" placeholder="אימות סיסמה" maxlength="4"></div>
+                                    <div class="col-12"><button class="btn btn-sm btn-download text-white" onclick="changePin()"><i class="bi bi-check-lg me-1"></i>שנה סיסמה</button></div>
+                                </div>
+                            </div>
+
+                            <!-- Default quality -->
+                            <div class="mb-4 p-3" style="background:#f8f9ff;border-radius:14px">
+                                <div class="fw-bold mb-2"><i class="bi bi-sliders me-1"></i>ברירות מחדל</div>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label class="form-label small">איכות ברירת מחדל</label>
+                                        <select id="settDefaultQuality" class="form-select form-select-sm" onchange="saveSettings()">
+                                            <option value="best">הכי טובה</option>
+                                            <option value="720">720p</option>
+                                            <option value="480">480p</option>
+                                            <option value="360">360p</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small">פורמט ברירת מחדל</label>
+                                        <select id="settDefaultFormat" class="form-select form-select-sm" onchange="saveSettings()">
+                                            <option value="video">וידאו + שמע</option>
+                                            <option value="audio">שמע בלבד</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Dark mode toggle -->
+                            <div class="mb-4 p-3" style="background:#f8f9ff;border-radius:14px">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div><i class="bi bi-moon me-1"></i><span class="fw-bold">מצב כהה</span></div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="settDarkToggle" onchange="toggleDarkFromSettings()" style="cursor:pointer;width:3em;height:1.5em">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- GitHub Token -->
+                            <div class="mb-4 p-3" style="background:#f8f9ff;border-radius:14px">
+                                <div class="fw-bold mb-2"><i class="bi bi-github me-1"></i>GitHub Token</div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <input type="text" id="settTokenDisplay" class="form-control form-control-sm" readonly dir="ltr" style="background:#e9ecef">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="toggleTokenVisibility()" data-bs-toggle="tooltip" title="הצג/הסתר"><i class="bi bi-eye" id="settTokenEyeIcon"></i></button>
+                                </div>
+                                <div class="mt-2">
+                                    <input type="text" id="settNewToken" class="form-control form-control-sm d-none" placeholder="הדבק token חדש..." dir="ltr">
+                                    <div class="d-flex gap-2 mt-2">
+                                        <button class="btn btn-sm btn-outline-warning" onclick="document.getElementById('settNewToken').classList.toggle('d-none')"><i class="bi bi-pencil me-1"></i>שנה Token</button>
+                                        <button class="btn btn-sm btn-download text-white d-none" id="settSaveTokenBtn" onclick="saveNewToken()"><i class="bi bi-check-lg me-1"></i>שמור</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Clear data buttons -->
+                            <div class="mb-4 p-3" style="background:#fff5f5;border-radius:14px;border:1px solid #ffe0e0">
+                                <div class="fw-bold mb-2 text-danger"><i class="bi bi-trash me-1"></i>ניקוי נתונים</div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button class="btn btn-sm btn-outline-warning" onclick="clearRecentSearches()"><i class="bi bi-clock-history me-1"></i>מחיקת חיפושים אחרונים</button>
+                                    <button class="btn btn-sm btn-outline-warning" onclick="clearSearchSuggestions()"><i class="bi bi-search me-1"></i>מחיקת הצעות חיפוש</button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="clearAllData()"><i class="bi bi-exclamation-triangle me-1"></i>מחיקת כל הנתונים</button>
+                                </div>
+                            </div>
+
+                            <!-- Version info -->
+                            <div class="text-center text-muted small mt-3">
+                                <i class="bi bi-info-circle me-1"></i>גרסה <strong>v6.0</strong> | VideoGrab
+                            </div>
                         </div>
                     </div>
 
@@ -577,7 +660,7 @@
         }
 
         // === Tab switching with fade ===
-        const TABS = ['download','search','queue','favorites','drive','history'];
+        const TABS = ['download','search','queue','favorites','drive','history','settings'];
         function switchTab(tab) {
             TABS.forEach(t => {
                 const pane = document.getElementById('tab-' + t);
@@ -592,6 +675,7 @@
             });
             if (tab === 'favorites') renderFavorites();
             if (tab === 'search') renderRecentSearches();
+            if (tab === 'settings') initSettingsTab();
         }
 
         function showToast(msg, type = 'info') {
@@ -1095,6 +1179,152 @@
             }
         }
         requestNotifications();
+
+        // === Settings functions ===
+        function getAppPin() { return localStorage.getItem('app_pin') || PIN; }
+
+        function changePin() {
+            const oldPin = document.getElementById('settOldPin').value;
+            const newPin = document.getElementById('settNewPin').value;
+            const confirmPin = document.getElementById('settConfirmPin').value;
+            const currentPin = getAppPin();
+            if (oldPin !== currentPin) { showToast('סיסמה נוכחית שגויה', 'error'); return; }
+            if (!newPin || newPin.length < 4) { showToast('סיסמה חדשה חייבת להיות 4 ספרות', 'error'); return; }
+            if (newPin !== confirmPin) { showToast('הסיסמאות לא תואמות', 'error'); return; }
+            localStorage.setItem('app_pin', newPin);
+            document.getElementById('settOldPin').value = '';
+            document.getElementById('settNewPin').value = '';
+            document.getElementById('settConfirmPin').value = '';
+            showToast('הסיסמה שונתה בהצלחה!', 'success');
+        }
+
+        // Override checkPin to use stored PIN
+        const _origCheckPin = checkPin;
+        checkPin = function() {
+            const storedPin = getAppPin();
+            if (document.getElementById('pinInput').value === storedPin) {
+                document.getElementById('pinScreen').classList.add('d-none');
+                document.getElementById('mainApp').classList.remove('d-none');
+                if (!localStorage.getItem('gh_token') && !GH_TOKEN) new bootstrap.Modal(document.getElementById('setupModal')).show();
+                updateStats();
+                initTooltips();
+                renderRecentSearches();
+                loadSettings();
+            } else {
+                document.getElementById('pinError').classList.remove('d-none');
+                document.getElementById('pinInput').value = '';
+            }
+        };
+
+        function saveSettings() {
+            const settings = {
+                defaultQuality: document.getElementById('settDefaultQuality').value,
+                defaultFormat: document.getElementById('settDefaultFormat').value,
+                darkMode: document.body.classList.contains('dark')
+            };
+            localStorage.setItem('vg_settings', JSON.stringify(settings));
+            // Apply defaults to download tab
+            document.getElementById('qualitySelect').value = settings.defaultQuality;
+            document.getElementById('formatSelect').value = settings.defaultFormat;
+        }
+
+        function loadSettings() {
+            const settings = JSON.parse(localStorage.getItem('vg_settings') || '{}');
+            if (settings.defaultQuality) {
+                document.getElementById('qualitySelect').value = settings.defaultQuality;
+            }
+            if (settings.defaultFormat) {
+                document.getElementById('formatSelect').value = settings.defaultFormat;
+            }
+        }
+        // Load settings on startup
+        loadSettings();
+
+        function initSettingsTab() {
+            const settings = JSON.parse(localStorage.getItem('vg_settings') || '{}');
+            if (settings.defaultQuality) document.getElementById('settDefaultQuality').value = settings.defaultQuality;
+            if (settings.defaultFormat) document.getElementById('settDefaultFormat').value = settings.defaultFormat;
+            document.getElementById('settDarkToggle').checked = document.body.classList.contains('dark');
+            // Mask token display
+            updateTokenDisplay();
+            // Show/hide save button based on new token input visibility
+            const newTokenInput = document.getElementById('settNewToken');
+            const saveBtn = document.getElementById('settSaveTokenBtn');
+            newTokenInput.addEventListener('input', function() { saveBtn.classList.toggle('d-none', !this.value.trim()); });
+        }
+
+        function updateTokenDisplay() {
+            const token = localStorage.getItem('gh_token') || GH_TOKEN || '';
+            const display = document.getElementById('settTokenDisplay');
+            if (display) {
+                if (token) {
+                    display.value = token.substring(0, 6) + '****' + token.substring(token.length - 4);
+                } else {
+                    display.value = 'לא הוגדר';
+                }
+                display.dataset.revealed = 'false';
+            }
+        }
+
+        function toggleTokenVisibility() {
+            const display = document.getElementById('settTokenDisplay');
+            const icon = document.getElementById('settTokenEyeIcon');
+            const token = localStorage.getItem('gh_token') || GH_TOKEN || '';
+            if (display.dataset.revealed === 'true') {
+                display.value = token.substring(0, 6) + '****' + token.substring(token.length - 4);
+                display.dataset.revealed = 'false';
+                icon.className = 'bi bi-eye';
+            } else {
+                display.value = token;
+                display.dataset.revealed = 'true';
+                icon.className = 'bi bi-eye-slash';
+            }
+        }
+
+        function saveNewToken() {
+            const newToken = document.getElementById('settNewToken').value.trim();
+            if (!newToken) { showToast('הכנס token תקין', 'error'); return; }
+            GH_TOKEN = newToken;
+            localStorage.setItem('gh_token', newToken);
+            document.getElementById('settNewToken').value = '';
+            document.getElementById('settNewToken').classList.add('d-none');
+            document.getElementById('settSaveTokenBtn').classList.add('d-none');
+            updateTokenDisplay();
+            showToast('Token עודכן בהצלחה!', 'success');
+        }
+
+        function toggleDarkFromSettings() {
+            toggleDark();
+            saveSettings();
+        }
+
+        function clearRecentSearches() {
+            localStorage.removeItem('recent_searches');
+            renderRecentSearches();
+            showToast('חיפושים אחרונים נמחקו', 'success');
+        }
+
+        function clearSearchSuggestions() {
+            lastSearchResults = [];
+            document.getElementById('searchResults').innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-search fs-1 d-block mb-2" style="opacity:0.3"></i>חפש סרטונים מ-Dailymotion, Vimeo, הידברות ו-Archive.org</div>';
+            showToast('הצעות חיפוש נמחקו', 'success');
+        }
+
+        function clearAllData() {
+            if (!confirm('האם אתה בטוח שברצונך למחוק את כל הנתונים?\nפעולה זו תמחק היסטוריה, מועדפים, תור, חיפושים והגדרות.')) return;
+            if (!confirm('אישור סופי - כל הנתונים יימחקו לצמיתות!')) return;
+            const keysToRemove = ['dl_history', 'dl_queue', 'recent_searches', 'favorites', 'vg_settings', 'dark', 'app_pin'];
+            keysToRemove.forEach(k => localStorage.removeItem(k));
+            // Keep gh_token
+            queue = [];
+            lastSearchResults = [];
+            updateStats();
+            renderFavorites();
+            showToast('כל הנתונים נמחקו', 'success');
+            // Reset dark mode UI
+            document.body.classList.remove('dark');
+            document.getElementById('darkBtn').innerHTML = '<i class="bi bi-moon me-1"></i>מצב כהה';
+        }
     </script>
 </body>
 </html>

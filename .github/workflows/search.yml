@@ -28,7 +28,8 @@ jobs:
           print('Searching YouTube...')
           for inst in ['pipedapi.kavin.rocks', 'pipedapi.adminforge.de']:
               try:
-                  r = requests.get(f'https://{inst}/search', params={'q': query, 'filter': 'videos'}, timeout=10)
+                  api_url = 'https://' + inst + '/search'
+              r = requests.get(api_url, params={'q': query, 'filter': 'videos'}, timeout=10)
                   if r.status_code == 200:
                       data = r.json()
                       items = data.get('items', data) if isinstance(data, dict) else data
@@ -51,7 +52,8 @@ jobs:
           if not any(r['source'] == 'YouTube' for r in results):
               for inst in ['inv.nadeko.net', 'invidious.nerdvpn.de', 'invidious.protokolla.fi']:
                   try:
-                      r = requests.get(f'https://{inst}/api/v1/search', params={'q': query, 'type': 'video'}, timeout=10)
+                      api_url = 'https://' + inst + '/api/v1/search'
+                      r = requests.get(api_url, params={'q': query, 'type': 'video'}, timeout=10)
                       if r.status_code == 200:
                           for v in r.json()[:15]:
                               results.append({
