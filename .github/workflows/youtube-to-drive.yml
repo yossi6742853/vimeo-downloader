@@ -8,7 +8,7 @@ on:
       quality:
         description: '360/480/720/1080/1440/2160/best'
         required: false
-        default: '720'
+        default: 'best'
       download_to_pc:
         description: 'true/false - also expose for PC download'
         required: false
@@ -40,7 +40,7 @@ jobs:
           mkdir -p videos
           URL="${{ github.event.inputs.url }}"
           QUALITY="${{ github.event.inputs.quality }}"
-          [ -z "$QUALITY" ] && QUALITY="720"
+          [ -z "$QUALITY" ] && QUALITY="best"
           echo "Downloading: $URL (quality: $QUALITY)"
           echo "IP before WARP:"
           curl -s ifconfig.me

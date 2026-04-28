@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>VideoGrab v6.1 - הורדת קבצים לדרייב + מחשב</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#6c5ce7">
@@ -275,7 +278,7 @@
                 <div class="col-lg-9">
                     <div class="text-center mb-4" style="position:relative;z-index:1">
                         <div class="logo-icon"><i class="bi bi-cloud-arrow-down-fill"></i></div>
-                        <div class="logo-title">VideoGrab <span class="version-badge">v6.0</span></div>
+                        <div class="logo-title">VideoGrab <span class="version-badge">v6.1</span></div>
                         <p class="logo-sub">הורד סרטונים, מצגות, תמונות ומסמכים מכל אתר — ישירות ל-Google Drive</p>
                         <div class="mt-2">
                             <span class="site-badge"><i class="bi bi-film me-1"></i>סרטונים</span>
@@ -341,11 +344,11 @@
                                 <div class="col-6">
                                     <label class="form-label small fw-bold"><i class="bi bi-sliders me-1"></i>איכות</label>
                                     <select id="qualitySelect" class="form-select" style="border-radius:12px">
-                                        <option value="best">מלאה (הכי גבוהה)</option>
+                                        <option value="best" selected>מלאה (הכי גבוהה)</option>
                                         <option value="2160">2160p (4K)</option>
                                         <option value="1440">1440p (2K)</option>
                                         <option value="1080">1080p (Full HD)</option>
-                                        <option value="720" selected>720p (מומלץ)</option>
+                                        <option value="720">720p</option>
                                         <option value="480">480p (קל)</option>
                                         <option value="360">360p (קטן)</option>
                                     </select>
@@ -530,7 +533,7 @@
                                     <div class="col-6">
                                         <label class="form-label small">איכות ברירת מחדל</label>
                                         <select id="settDefaultQuality" class="form-select form-select-sm" onchange="saveSettings()">
-                                            <option value="best">מלאה (הכי גבוהה)</option>
+                                            <option value="best" selected>מלאה (הכי גבוהה)</option>
                                             <option value="2160">2160p (4K)</option>
                                             <option value="1440">1440p (2K)</option>
                                             <option value="1080">1080p</option>
@@ -587,7 +590,7 @@
 
                             <!-- Version info -->
                             <div class="text-center text-muted small mt-3">
-                                <i class="bi bi-info-circle me-1"></i>גרסה <strong>v6.0</strong> | VideoGrab
+                                <i class="bi bi-info-circle me-1"></i>גרסה <strong>v6.1</strong> | VideoGrab
                             </div>
                         </div>
                     </div>
@@ -603,7 +606,7 @@
                     </div>
 
                     <div class="text-center small" style="position:relative;z-index:1">
-                        <p class="text-white-50"><i class="bi bi-shield-check me-1"></i>מסנן תוכן פעיל | <i class="bi bi-folder2 me-1"></i>קבצים מגיעים ל"סרטונים שהורדו" בדרייב | <span class="version-badge">v6.0</span></p>
+                        <p class="text-white-50"><i class="bi bi-shield-check me-1"></i>מסנן תוכן פעיל | <i class="bi bi-folder2 me-1"></i>קבצים מגיעים ל"סרטונים שהורדו" בדרייב | <span class="version-badge">v6.1</span></p>
                         <div class="d-flex justify-content-center gap-2 flex-wrap">
                             <button class="btn btn-sm text-white-50" onclick="toggleDark()" id="darkBtn" data-bs-toggle="tooltip" title="החלף מצב תצוגה"><i class="bi bi-moon me-1"></i>מצב כהה</button>
                             <button class="btn btn-sm text-white-50" onclick="installPWA()" id="installBtn" style="display:none" data-bs-toggle="tooltip" title="התקן כאפליקציה"><i class="bi bi-download me-1"></i>התקן כאפליקציה</button>
@@ -891,7 +894,7 @@
 
         // === Download from search results with per-result quality/format ===
         function startDownloadWithOpts(url, qualityId, formatId) {
-            const q = document.getElementById(qualityId)?.value || '720';
+            const q = document.getElementById(qualityId)?.value || 'best';
             const f = document.getElementById(formatId)?.value || 'video';
             startDownload(url, f, q);
         }
@@ -902,6 +905,16 @@
 
             // CONTENT FILTER - CANNOT BE BYPASSED
             if (_CF.checkUrl(url)) { showToast(_CF.msg, 'warning'); return; }
+
+            // NotebookLM detection — auth-required, cannot download server-side
+            if (url.includes('notebooklm') || url.includes('googleusercontent.com/notebooklm')) {
+                showToast('קישור NotebookLM דורש התחברות לגוגל — פתח בדפדפן והורד דרך הדפדפן', 'warning');
+                const modal = document.createElement('div');
+                modal.innerHTML = `<div class="modal fade" id="notebookLmModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title"><i class="bi bi-info-circle me-2"></i>הורדת סרטון NotebookLM</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><p>סרטוני NotebookLM הם פרטיים ודורשים התחברות לחשבון Google שלך. הם <strong>לא ניתנים להורדה</strong> דרך השרת.</p><p class="fw-bold">איך להוריד?</p><ol class="small"><li>פתח את הקישור בדפדפן (אתה צריך להיות מחובר לחשבון שיצר את ה-NotebookLM)</li><li>לחץ קליק ימני על הסרטון → "שמור סרטון בשם..."</li><li>או — בכלי המפתחים (F12) → לשונית Network → סנן video → לחץ על הסרטון → ימני → Save As</li></ol><a href="${url}" target="_blank" class="btn btn-primary w-100"><i class="bi bi-box-arrow-up-right me-1"></i>פתח קישור בדפדפן</a></div></div></div></div>`;
+                document.body.appendChild(modal);
+                new bootstrap.Modal(modal.querySelector('.modal')).show();
+                return;
+            }
 
             if (!GH_TOKEN) { new bootstrap.Modal(document.getElementById('setupModal')).show(); return; }
 
@@ -918,7 +931,7 @@
 
             try {
                 const format = overrideFormat || document.getElementById('formatSelect')?.value || 'video';
-                const quality = overrideQuality || document.getElementById('qualitySelect')?.value || '720';
+                const quality = overrideQuality || document.getElementById('qualitySelect')?.value || 'best';
                 const dlToPc = document.getElementById('downloadToPcCheck')?.checked ? 'true' : 'false';
                 const inputs = { url, download_to_pc: dlToPc };
                 if (workflow === 'download-to-drive.yml') {
