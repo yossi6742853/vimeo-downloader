@@ -1,9 +1,9 @@
-name: Fetch Page (NetFree-bypass proxy + reader mode)
+name: Fetch Page (full asset proxy — NetFree-bypass)
 on:
   workflow_dispatch:
     inputs:
       url:
-        description: 'URL to fetch and proxy'
+        description: 'URL to fetch and proxy (HTML + images + videos)'
         required: true
 
 permissions:
@@ -12,30 +12,35 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
 
       - name: Install
-        run: pip install -q requests beautifulsoup4 readability-lxml lxml
+        run: |
+          pip install -q requests beautifulsoup4 readability-lxml lxml yt-dlp
 
-      - name: Fetch and clean page
+      - name: Fetch page + assets
         env:
           URL: ${{ github.event.inputs.url }}
         run: |
-          mkdir -p docs/preview
           python3 - <<'PY'
-          import os, re, hashlib, urllib.parse
+          import os, re, hashlib, urllib.parse, subprocess, mimetypes
           import requests
           from bs4 import BeautifulSoup
           from readability import Document
 
           url = os.environ["URL"]
           h = hashlib.sha1(url.encode()).hexdigest()[:16]
+          asset_dir = f"docs/preview/{h}_assets"
           out = f"docs/preview/{h}.html"
+          os.makedirs(asset_dir, exist_ok=True)
 
-          headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-                     "Accept-Language": "he,en;q=0.9"}
+          UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+          headers = {"User-Agent": UA, "Accept-Language": "he,en;q=0.9"}
+          base_for_assets = f"{h}_assets"
+
+          # 1. Fetch HTML
           try:
               r = requests.get(url, headers=headers, timeout=25, allow_redirects=True)
               r.raise_for_status()
@@ -43,10 +48,8 @@ jobs:
           except Exception as e:
               with open(out, "w", encoding="utf-8") as f:
                   f.write(f'<!DOCTYPE html><html dir=rtl><body style="font-family:Heebo,Arial;padding:30px;text-align:center"><h2>שגיאה בטעינה</h2><p>{e}</p></body></html>')
-              print(f"FAIL: {e}")
               raise SystemExit(0)
 
-          # Decode
           text = None
           for enc in [r.encoding, "utf-8", "windows-1255", "latin-1"]:
               if enc:
@@ -54,90 +57,159 @@ jobs:
                   except: continue
           if not text: text = raw.decode("utf-8", errors="replace")
 
-          # Extract main content via readability
+          # 2. Extract main content
           try:
               doc = Document(text)
-              title = doc.title()
+              title = doc.title() or url
               content_html = doc.summary()
-          except Exception as e:
-              soup = BeautifulSoup(text, "lxml")
-              title = (soup.title.string if soup.title else url)[:200]
-              content_html = str(soup.body or soup)
+          except Exception:
+              soup_full = BeautifulSoup(text, "lxml")
+              title = (soup_full.title.string if soup_full.title else url)[:200]
+              content_html = str(soup_full.body or soup_full)
 
-          # Clean content: remove scripts, ads, dangerous attrs
           soup = BeautifulSoup(content_html, "lxml")
-          for tag in soup(["script","style","iframe","noscript","embed","object","form"]):
+          for tag in soup(["script","style","noscript","embed","object","form"]):
               tag.decompose()
-          # Resolve image src to absolute URL (so they at least try to load)
-          base = urllib.parse.urlparse(url)._replace(path="", query="", fragment="").geturl()
+
+          # 3. Download images (max 30)
+          asset_idx = 0
+          def download_asset(asset_url, max_size_mb=20):
+              nonlocal asset_idx
+              try:
+                  asset_idx += 1
+                  if asset_idx > 50: return None
+                  asset_url = urllib.parse.urljoin(url, asset_url)
+                  ar = requests.get(asset_url, headers={**headers, "Referer": url}, timeout=15, stream=True)
+                  if ar.status_code != 200: return None
+                  cl = int(ar.headers.get("Content-Length", "0"))
+                  if cl > max_size_mb * 1024 * 1024: return None
+                  ct = ar.headers.get("Content-Type","").split(";")[0]
+                  ext = mimetypes.guess_extension(ct) or os.path.splitext(urllib.parse.urlparse(asset_url).path)[1] or ".bin"
+                  if ext == ".jpe": ext = ".jpg"
+                  ahash = hashlib.sha1(asset_url.encode()).hexdigest()[:12]
+                  fname = f"{ahash}{ext}"
+                  fpath = os.path.join(asset_dir, fname)
+                  total = 0
+                  with open(fpath, "wb") as f:
+                      for chunk in ar.iter_content(64*1024):
+                          total += len(chunk)
+                          if total > max_size_mb * 1024 * 1024: break
+                          f.write(chunk)
+                  return f"{base_for_assets}/{fname}"
+              except Exception as e:
+                  return None
+
+          # Images
           for img in soup.find_all("img"):
-              src = img.get("src","")
-              if src and not src.startswith(("http://","https://","data:")):
-                  img["src"] = urllib.parse.urljoin(url, src)
-              # Add lazy + error fallback
+              src = img.get("src") or img.get("data-src") or img.get("data-lazy-src")
+              if not src: continue
+              local = download_asset(src, max_size_mb=10)
+              if local:
+                  img["src"] = local
+                  img.attrs.pop("data-src", None); img.attrs.pop("data-lazy-src", None); img.attrs.pop("srcset", None)
               img["loading"] = "lazy"
               img["onerror"] = "this.style.display='none'"
-              if img.get("style"):
-                  img["style"] = img["style"] + ";max-width:100%;height:auto"
-              else:
-                  img["style"] = "max-width:100%;height:auto"
-          # Make links open in new tab
+              img["style"] = (img.get("style","") + ";max-width:100%;height:auto").strip(";")
+
+          # 4. Convert YouTube/Vimeo iframes to <video> tags via yt-dlp
+          for iframe in soup.find_all("iframe"):
+              src = iframe.get("src","") or ""
+              video_url = None
+              if "youtube.com/embed/" in src:
+                  vid_id = src.split("youtube.com/embed/")[-1].split("?")[0].split("/")[0]
+                  video_url = f"https://www.youtube.com/watch?v={vid_id}"
+              elif "youtu.be/" in src:
+                  vid_id = src.split("youtu.be/")[-1].split("?")[0].split("/")[0]
+                  video_url = f"https://www.youtube.com/watch?v={vid_id}"
+              elif "vimeo.com/video/" in src:
+                  vid_id = src.split("vimeo.com/video/")[-1].split("?")[0].split("/")[0]
+                  video_url = f"https://vimeo.com/{vid_id}"
+              if video_url:
+                  ahash = hashlib.sha1(video_url.encode()).hexdigest()[:12]
+                  out_tmpl = os.path.join(asset_dir, f"{ahash}.%(ext)s")
+                  try:
+                      subprocess.run(["yt-dlp", "--no-overwrites", "--merge-output-format", "mp4",
+                                     "-f", "bv*[height<=720]+ba/b[height<=720]/best",
+                                     "-o", out_tmpl, "--no-warnings", "--max-filesize", "150M",
+                                     video_url], timeout=120, capture_output=True)
+                      # Find resulting file
+                      for f in os.listdir(asset_dir):
+                          if f.startswith(ahash) and not f.endswith(".part"):
+                              new_video = soup.new_tag("video", controls=True, preload="metadata")
+                              new_video["style"] = "width:100%;max-height:500px;border-radius:8px"
+                              source = soup.new_tag("source", src=f"{base_for_assets}/{f}", type="video/mp4")
+                              new_video.append(source)
+                              iframe.replace_with(new_video)
+                              break
+                  except Exception:
+                      pass
+
+          # 5. Direct <video> tags - download src
+          for vid in soup.find_all("video"):
+              for src_tag in vid.find_all("source"):
+                  s = src_tag.get("src","")
+                  if s:
+                      local = download_asset(s, max_size_mb=150)
+                      if local: src_tag["src"] = local
+              vsrc = vid.get("src","")
+              if vsrc:
+                  local = download_asset(vsrc, max_size_mb=150)
+                  if local: vid["src"] = local
+              vid["controls"] = True
+              vid["preload"] = "metadata"
+              vid["style"] = (vid.get("style","") + ";width:100%;max-height:500px;border-radius:8px").strip(";")
+
+          # 6. Resolve links
           for a in soup.find_all("a"):
-              a["target"] = "_blank"
-              a["rel"] = "noopener noreferrer"
+              a["target"] = "_blank"; a["rel"] = "noopener noreferrer"
               href = a.get("href","")
               if href and not href.startswith(("http://","https://","mailto:","tel:","#")):
                   a["href"] = urllib.parse.urljoin(url, href)
 
           clean = str(soup)
 
-          # Wrap in self-contained HTML with embedded styles
           html = f'''<!DOCTYPE html>
-          <html lang="he" dir="rtl">
-          <head>
+          <html lang="he" dir="rtl"><head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width,initial-scale=1">
           <title>{title}</title>
           <style>
           *{{box-sizing:border-box}}
           body{{font-family:'Segoe UI','Heebo','David',Arial,sans-serif;line-height:1.7;color:#222;background:#fafafa;margin:0;padding:0}}
-          .reader-container{{max-width:760px;margin:0 auto;padding:30px 24px;background:#fff;min-height:100vh;box-shadow:0 0 30px rgba(0,0,0,0.05)}}
+          .reader-container{{max-width:780px;margin:0 auto;padding:30px 24px;background:#fff;min-height:100vh;box-shadow:0 0 30px rgba(0,0,0,0.05)}}
           .reader-header{{border-bottom:2px solid #eee;padding-bottom:20px;margin-bottom:30px}}
           .reader-header h1{{font-size:1.8rem;line-height:1.3;margin:0 0 8px;color:#111}}
-          .reader-header .reader-source{{color:#888;font-size:.85rem;direction:ltr;display:inline-block}}
-          .reader-header .reader-source a{{color:#1a73e8;text-decoration:none}}
+          .reader-source{{color:#888;font-size:.85rem;direction:ltr}}
+          .reader-source a{{color:#1a73e8;text-decoration:none}}
           .reader-content{{font-size:1.05rem}}
           .reader-content p{{margin:0 0 1em}}
           .reader-content img{{margin:16px 0;border-radius:6px}}
           .reader-content a{{color:#1a73e8}}
-          .reader-content h2,.reader-content h3{{margin:1.2em 0 .5em}}
-          .reader-content blockquote{{border-right:4px solid #1a73e8;margin:1em 0;padding:.5em 1em;background:#f5f9ff;color:#444}}
-          .reader-banner{{background:#fff8dc;border:1px solid #f0d000;color:#776800;padding:8px 14px;border-radius:6px;font-size:.85rem;margin-bottom:20px}}
+          .reader-content video{{margin:16px 0}}
+          .reader-content blockquote{{border-right:4px solid #1a73e8;margin:1em 0;padding:.5em 1em;background:#f5f9ff}}
+          .reader-banner{{background:#e8f5e9;border:1px solid #4caf50;color:#2e7d32;padding:8px 14px;border-radius:6px;font-size:.85rem;margin-bottom:20px}}
           @media(prefers-color-scheme:dark){{
             body{{background:#1a1a1a;color:#ddd}}
-            .reader-container{{background:#222;box-shadow:0 0 30px rgba(0,0,0,0.6)}}
+            .reader-container{{background:#222}}
             .reader-header h1{{color:#fff}}
-            .reader-header{{border-color:#333}}
-            .reader-content blockquote{{background:#1c2632;color:#ccc;border-color:#3b82f6}}
+            .reader-content blockquote{{background:#1c2632;color:#ccc}}
           }}
-          </style>
-          </head>
-          <body>
+          </style></head><body>
           <div class="reader-container">
-            <div class="reader-banner">📖 מצב קריאה — תוכן בלבד (תמונות + טקסט). <a href="{url}" target="_blank" rel="noopener" style="color:#1a73e8;text-decoration:none">פתח דף מקורי ↗</a></div>
+            <div class="reader-banner">🛡️ דרך פרוקסי GitHub — כל הקבצים הורדו לשרת ועוקפים את נטפרי. <a href="{url}" target="_blank" rel="noopener" style="color:#2e7d32">פתח דף מקורי ↗</a></div>
             <div class="reader-header">
               <h1>{title}</h1>
               <div class="reader-source"><a href="{url}" target="_blank" rel="noopener">{url}</a></div>
             </div>
             <div class="reader-content">{clean}</div>
           </div>
-          </body>
-          </html>'''
+          </body></html>'''
 
-          os.makedirs("docs/preview", exist_ok=True)
           with open(out, "w", encoding="utf-8") as f:
               f.write(html)
-          print(f"OK: saved {len(html)} chars to {out}")
+          # Stats
+          assets = os.listdir(asset_dir) if os.path.exists(asset_dir) else []
+          print(f"OK: page={len(html)//1024}KB, {len(assets)} assets in {asset_dir}/")
           PY
 
       - name: Commit
