@@ -13,124 +13,67 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup
-        run: |
-          pip install -U yt-dlp requests
-          # Install free proxy tools
-          pip install httpx[socks]
+      - name: Setup Cloudflare WARP
+        uses: fscarmen/warp-on-actions@v1.1
+        with:
+          stack: dual
 
-      - name: Download YouTube via multiple methods
+      - name: Install yt-dlp
+        run: |
+          pip install -U yt-dlp
+          curl -fsSL https://deno.land/install.sh | sh
+          echo "$HOME/.deno/bin" >> $GITHUB_PATH
+
+      - name: Download YouTube video
         run: |
           mkdir -p videos
-          python3 << 'PYEOF'
-          import requests, os, sys, subprocess, json
+          URL="${{ github.event.inputs.url }}"
+          echo "Downloading: $URL"
+          echo "IP before WARP:"
+          curl -s ifconfig.me
+          echo ""
 
-          url = "${{ github.event.inputs.url }}"
-          vid = ""
-          if "v=" in url: vid = url.split("v=")[1].split("&")[0]
-          elif "youtu.be/" in url: vid = url.split("youtu.be/")[1].split("?")[0]
-          print(f"Video ID: {vid}")
+          # Try multiple methods in order
+          # Method 1: Android client (best for bypassing bot detection)
+          echo "=== Method 1: Android client ==="
+          yt-dlp \
+            --extractor-args "youtube:player_client=android" \
+            --no-overwrites \
+            --merge-output-format mp4 \
+            -f "bv*[height<=720]+ba/b[height<=720]" \
+            -o "videos/%(title)s.%(ext)s" \
+            "$URL" 2>&1 && echo "SUCCESS" && exit 0 || true
 
-          ok = False
+          # Method 2: iOS client
+          echo "=== Method 2: iOS client ==="
+          yt-dlp \
+            --extractor-args "youtube:player_client=ios" \
+            --no-overwrites \
+            --merge-output-format mp4 \
+            -f "bv*[height<=720]+ba/b[height<=720]" \
+            -o "videos/%(title)s.%(ext)s" \
+            "$URL" 2>&1 && echo "SUCCESS" && exit 0 || true
 
-          # Method 1: Free SOCKS5 proxies with yt-dlp
-          print("\n=== Method 1: yt-dlp with free proxies ===")
-          try:
-              # Get free proxy list
-              r = requests.get("https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks5&timeout=5000&country=all", timeout=10)
-              proxies = [p.strip() for p in r.text.strip().split("\n") if p.strip()][:10]
-              print(f"Got {len(proxies)} proxies")
+          # Method 3: TV client
+          echo "=== Method 3: TV client ==="
+          yt-dlp \
+            --extractor-args "youtube:player_client=tv" \
+            --no-overwrites \
+            -o "videos/%(title)s.%(ext)s" \
+            "$URL" 2>&1 && echo "SUCCESS" && exit 0 || true
 
-              for proxy in proxies:
-                  print(f"  Trying proxy: {proxy}")
-                  result = subprocess.run([
-                      "yt-dlp", "--proxy", f"socks5://{proxy}",
-                      "--socket-timeout", "15",
-                      "--no-overwrites", "-o", "videos/%(title)s.%(ext)s",
-                      url
-                  ], capture_output=True, text=True, timeout=60)
-                  if result.returncode == 0:
-                      files = [f for f in os.listdir("videos") if os.path.getsize(f"videos/{f}") > 10000]
-                      if files:
-                          print(f"  SUCCESS with proxy {proxy}!")
-                          ok = True
-                          break
-                  else:
-                      err = result.stderr[-100:] if result.stderr else ""
-                      if "bot" not in err.lower():
-                          print(f"  Proxy error (not bot): {err}")
-          except Exception as e:
-              print(f"  Proxy method error: {e}")
+          # Method 4: Default with WARP IP
+          echo "=== Method 4: Default ==="
+          yt-dlp \
+            --no-overwrites \
+            -o "videos/%(title)s.%(ext)s" \
+            "$URL" 2>&1 || true
 
-          # Method 2: Use web download services
-          if not ok:
-              print("\n=== Method 2: Web services ===")
-              services = [
-                  {"name": "savefrom", "url": f"https://worker.sf-tools.com/savefrom.php?url={url}&lang=en"},
-                  {"name": "loader.to", "url": f"https://ab.cococococ.com/ajax/download.php?format=mp4&url={url}"},
-              ]
-              for svc in services:
-                  try:
-                      print(f"  Trying {svc['name']}...")
-                      r = requests.get(svc["url"], timeout=15, headers={"User-Agent": "Mozilla/5.0"})
-                      print(f"  Status: {r.status_code}, Length: {len(r.text)}")
-                      if r.status_code == 200:
-                          data = r.json() if r.headers.get("content-type","").startswith("application/json") else {}
-                          dl_url = data.get("url") or data.get("download_url") or ""
-                          if dl_url:
-                              print(f"  Got download URL! Downloading...")
-                              r2 = requests.get(dl_url, stream=True, timeout=300)
-                              with open("videos/youtube_video.mp4", "wb") as f:
-                                  for chunk in r2.iter_content(8192): f.write(chunk)
-                              if os.path.getsize("videos/youtube_video.mp4") > 10000:
-                                  ok = True; break
-                  except Exception as e:
-                      print(f"  {svc['name']}: {e}")
-
-          # Method 3: Piped instances
-          if not ok:
-              print("\n=== Method 3: Piped ===")
-              # Get fresh list of Piped instances
-              try:
-                  r = requests.get("https://raw.githubusercontent.com/TeamPiped/Piped/master/instances.json", timeout=10)
-                  instances = [i["api_url"] for i in r.json() if "api_url" in i][:8]
-              except:
-                  instances = ["https://pipedapi.kavin.rocks", "https://pipedapi.adminforge.de"]
-
-              for inst in instances:
-                  try:
-                      print(f"  Trying: {inst}")
-                      r = requests.get(f"{inst}/streams/{vid}", timeout=15)
-                      if r.status_code != 200: continue
-                      data = r.json()
-                      streams = data.get("videoStreams", [])
-                      best = None
-                      for s in streams:
-                          if not s.get("videoOnly", True):
-                              best = s; break
-                      if not best and streams: best = streams[0]
-                      if best and best.get("url"):
-                          print(f"  Downloading: {best.get('quality','')}")
-                          r2 = requests.get(best["url"], stream=True, timeout=300)
-                          title = data.get("title", "youtube_video")
-                          with open(f"videos/{title}.mp4", "wb") as f:
-                              for chunk in r2.iter_content(8192): f.write(chunk)
-                          if os.path.getsize(f"videos/{title}.mp4") > 10000:
-                              ok = True; break
-                  except Exception as e:
-                      print(f"  {inst}: {e}")
-
-          # Results
-          files = [f for f in os.listdir("videos") if os.path.getsize(f"videos/{f}") > 1000]
-          print(f"\n=== Result: {len(files)} files ===")
-          for f in files:
-              print(f"  {f}: {os.path.getsize(f'videos/{f}')/1024/1024:.1f} MB")
-          if not files:
-              sys.exit(1)
-          PYEOF
+          echo "=== Files ==="
+          ls -lh videos/ || echo "No files"
 
       - name: Upload to Google Drive
-        if: success()
+        if: always()
         env:
           CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
