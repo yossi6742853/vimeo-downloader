@@ -5,6 +5,10 @@ on:
       url:
         description: 'URL to fetch and proxy (HTML + images + videos)'
         required: true
+      include_videos:
+        description: 'true=download embedded videos (slow, 30-90s extra). false=text+images only'
+        required: false
+        default: 'false'
 
 permissions:
   contents: write
@@ -16,6 +20,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-fetch-page-v1
+
       - name: Install
         run: |
           pip install -q requests beautifulsoup4 readability-lxml lxml yt-dlp
@@ -23,6 +33,7 @@ jobs:
       - name: Fetch page + assets
         env:
           URL: ${{ github.event.inputs.url }}
+          INCLUDE_VIDEOS: ${{ github.event.inputs.include_videos }}
         run: |
           python3 - <<'PY'
           import os, re, hashlib, urllib.parse, subprocess, mimetypes
@@ -72,12 +83,11 @@ jobs:
               tag.decompose()
 
           # 3. Download images (max 30)
-          asset_idx = 0
+          asset_count = [0]
           def download_asset(asset_url, max_size_mb=20):
-              nonlocal asset_idx
               try:
-                  asset_idx += 1
-                  if asset_idx > 50: return None
+                  asset_count[0] += 1
+                  if asset_count[0] > 50: return None
                   asset_url = urllib.parse.urljoin(url, asset_url)
                   ar = requests.get(asset_url, headers={**headers, "Referer": url}, timeout=15, stream=True)
                   if ar.status_code != 200: return None
@@ -111,7 +121,8 @@ jobs:
               img["onerror"] = "this.style.display='none'"
               img["style"] = (img.get("style","") + ";max-width:100%;height:auto").strip(";")
 
-          # 4. Convert YouTube/Vimeo iframes to <video> tags via yt-dlp
+          # 4. Convert YouTube/Vimeo iframes to <video> tags via yt-dlp (only if INCLUDE_VIDEOS=true)
+          INCLUDE_VIDEOS = os.environ.get("INCLUDE_VIDEOS","false").lower() == "true"
           for iframe in soup.find_all("iframe"):
               src = iframe.get("src","") or ""
               video_url = None
@@ -124,7 +135,26 @@ jobs:
               elif "vimeo.com/video/" in src:
                   vid_id = src.split("vimeo.com/video/")[-1].split("?")[0].split("/")[0]
                   video_url = f"https://vimeo.com/{vid_id}"
-              if video_url:
+              if video_url and not INCLUDE_VIDEOS:
+                  # Replace iframe with placeholder showing thumbnail + click to download via main download flow
+                  if "youtube" in video_url:
+                      vid_id = video_url.split("v=")[-1].split("&")[0]
+                      thumb = f"https://img.youtube.com/vi/{vid_id}/hqdefault.jpg"
+                      placeholder = soup.new_tag("div", style="position:relative;background:#000;border-radius:8px;overflow:hidden;margin:16px 0;cursor:pointer")
+                      img = soup.new_tag("img", src=thumb, style="width:100%;display:block;opacity:.7")
+                      img["onerror"] = "this.style.display='none'"
+                      overlay = soup.new_tag("div", style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:60px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.8)")
+                      overlay.string = "▶"
+                      label = soup.new_tag("div", style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,#000);color:#fff;padding:16px 12px 10px;font-size:.85rem")
+                      label.string = "🎬 לחץ לפתוח בYouTube (ייפתח בלשונית חדשה)"
+                      placeholder.append(img); placeholder.append(overlay); placeholder.append(label)
+                      placeholder["onclick"] = f"window.open('{video_url}','_blank')"
+                      iframe.replace_with(placeholder)
+                      continue
+                  else:
+                      iframe.decompose()
+                      continue
+              if video_url and INCLUDE_VIDEOS:
                   ahash = hashlib.sha1(video_url.encode()).hexdigest()[:12]
                   out_tmpl = os.path.join(asset_dir, f"{ahash}.%(ext)s")
                   try:

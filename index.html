@@ -2163,7 +2163,7 @@
             // Try cached version first (faster)
             try {
                 const hash = await urlToHash(url);
-                const cachedUrl = `https://yossi6742853.github.io/vimeo-downloader/docs/preview/${hash}.html`;
+                const cachedUrl = `https://cdn.jsdelivr.net/gh/yossi6742853/vimeo-downloader@master/docs/preview/${hash}.html`;
                 const head = await fetch(cachedUrl, { method: 'HEAD', cache: 'no-store' });
                 if (head.ok) {
                     clearInterval(timerInt);
@@ -2206,7 +2206,7 @@
                             const enc = new TextEncoder().encode(url);
                             const hashBuf = await crypto.subtle.digest('SHA-1', enc);
                             const hash = Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,'0')).join('').substring(0,16);
-                            const proxyUrl = `https://yossi6742853.github.io/vimeo-downloader/docs/preview/${hash}.html`;
+                            const proxyUrl = `https://cdn.jsdelivr.net/gh/yossi6742853/vimeo-downloader@master/docs/preview/${hash}.html`;
                             // Replace viewer body with iframe
                             v.querySelector('div[style*="flex:1"]').outerHTML = `<div style="flex:1;position:relative"><iframe src="${proxyUrl}" style="width:100%;height:100%;border:none;display:block" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe></div>`;
                         } else {
