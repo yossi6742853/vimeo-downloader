@@ -30,7 +30,7 @@ jobs:
 
       - name: Install tools
         run: |
-          pip install -U yt-dlp playwright requests
+          pip install -U yt-dlp playwright
           playwright install chromium
           curl -fsSL https://deno.land/install.sh | sh
           echo "$HOME/.deno/bin" >> $GITHUB_PATH
@@ -45,6 +45,7 @@ jobs:
           QUALITY="${{ github.event.inputs.quality }}"
 
           if [ "$FORMAT" = "audio" ]; then
+            # Audio only - extract as MP3
             yt-dlp --no-overwrites -x --audio-format mp3 -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
           elif [ "$QUALITY" = "best" ]; then
             yt-dlp --no-overwrites --merge-output-format mp4 -f "bv*+ba/b" -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
@@ -87,6 +88,7 @@ else:
           if [ -z "$(ls -A videos/ 2>/dev/null)" ]; then
             echo "Trying direct download..."
             FILENAME=$(basename "$URL" | head -c 200)
+            # Clean filename
             FILENAME=$(echo "$FILENAME" | sed 's/[?#].*//')
             [ -z "$FILENAME" ] && FILENAME="download"
             curl -L -o "videos/$FILENAME" "$URL" --max-time 300 -H "User-Agent: Mozilla/5.0" 2>&1 || true
@@ -95,8 +97,7 @@ else:
           echo "=== Files ==="
           ls -lh videos/ || echo "No files"
 
-      - name: Upload to Drive + record
-        if: always()
+      - name: Upload to Google Drive
         env:
           CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
@@ -107,12 +108,13 @@ else:
           python3 << 'PYEOF'
           import requests, json, os, glob, mimetypes, time
 
-          token = requests.post("https://oauth2.googleapis.com/token", data={
+          token_resp = requests.post("https://oauth2.googleapis.com/token", data={
               "client_id": os.environ["CLIENT_ID"],
               "client_secret": os.environ["CLIENT_SECRET"],
               "refresh_token": os.environ["REFRESH_TOKEN"],
               "grant_type": "refresh_token"
-          }).json()["access_token"]
+          })
+          token = token_resp.json()["access_token"]
           headers = {"Authorization": f"Bearer {token}"}
 
           r = requests.get("https://www.googleapis.com/drive/v3/files",
@@ -149,30 +151,22 @@ else:
               info = r2.json()
               fid = info.get("id")
               print(f"SUCCESS: id={fid}")
-              # Make public when needed for PC download
               if to_pc and fid:
                   pr = requests.post(f"https://www.googleapis.com/drive/v3/files/{fid}/permissions",
                       headers={**headers, "Content-Type": "application/json"},
                       json={"role": "reader", "type": "anyone"})
                   print(f"Permission: {pr.status_code}")
               uploaded.append({
-                  "id": fid,
-                  "name": fname,
-                  "size": size,
-                  "mimeType": mime,
-                  "url": source_url,
-                  "downloadToPc": to_pc,
-                  "time": int(time.time() * 1000)
+                  "id": fid, "name": fname, "size": size, "mimeType": mime,
+                  "url": source_url, "downloadToPc": to_pc, "time": int(time.time()*1000)
               })
 
-          # Append to docs/last_downloads.json
           os.makedirs("docs", exist_ok=True)
           path = "docs/last_downloads.json"
           history = []
           if os.path.exists(path):
               try:
-                  with open(path, encoding="utf-8") as f:
-                      history = json.load(f)
+                  with open(path, encoding="utf-8") as f: history = json.load(f)
               except: history = []
           history = uploaded + (history if isinstance(history, list) else [])
           history = history[:50]
