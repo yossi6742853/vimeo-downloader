@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>VideoGrab v6.1 - הורדת קבצים לדרייב + מחשב</title>
+    <title>VideoGrab v6.2 - הורדת קבצים לדרייב + מחשב</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#6c5ce7">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
@@ -278,7 +278,7 @@
                 <div class="col-lg-9">
                     <div class="text-center mb-4" style="position:relative;z-index:1">
                         <div class="logo-icon"><i class="bi bi-cloud-arrow-down-fill"></i></div>
-                        <div class="logo-title">VideoGrab <span class="version-badge">v6.1</span></div>
+                        <div class="logo-title">VideoGrab <span class="version-badge">v6.2</span></div>
                         <p class="logo-sub">הורד סרטונים, מצגות, תמונות ומסמכים מכל אתר — ישירות ל-Google Drive</p>
                         <div class="mt-2">
                             <span class="site-badge"><i class="bi bi-film me-1"></i>סרטונים</span>
@@ -590,7 +590,7 @@
 
                             <!-- Version info -->
                             <div class="text-center text-muted small mt-3">
-                                <i class="bi bi-info-circle me-1"></i>גרסה <strong>v6.1</strong> | VideoGrab
+                                <i class="bi bi-info-circle me-1"></i>גרסה <strong>v6.2</strong> | VideoGrab
                             </div>
                         </div>
                     </div>
@@ -611,7 +611,7 @@
                     </div>
 
                     <div class="text-center small" style="position:relative;z-index:1">
-                        <p class="text-white-50"><i class="bi bi-shield-check me-1"></i>מסנן תוכן פעיל | <i class="bi bi-folder2 me-1"></i>קבצים מגיעים ל"סרטונים שהורדו" בדרייב | <span class="version-badge">v6.1</span></p>
+                        <p class="text-white-50"><i class="bi bi-shield-check me-1"></i>מסנן תוכן פעיל | <i class="bi bi-folder2 me-1"></i>קבצים מגיעים ל"סרטונים שהורדו" בדרייב | <span class="version-badge">v6.2</span></p>
                         <div class="d-flex justify-content-center gap-2 flex-wrap">
                             <button class="btn btn-sm text-white-50" onclick="toggleDark()" id="darkBtn" data-bs-toggle="tooltip" title="החלף מצב תצוגה"><i class="bi bi-moon me-1"></i>מצב כהה</button>
                             <button class="btn btn-sm text-white-50" onclick="installPWA()" id="installBtn" style="display:none" data-bs-toggle="tooltip" title="התקן כאפליקציה"><i class="bi bi-download me-1"></i>התקן כאפליקציה</button>
@@ -1943,42 +1943,80 @@
 
             googleSearchTime = performance.now();
             const el = document.getElementById('googleResults');
-            el.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">מחפש בגוגל...</p><p class="small text-muted">~15 שניות בפעם הראשונה</p></div>';
+            const renderProgress = (txt, sub) => { el.innerHTML = `<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2 fw-bold">${txt}</p><p class="small text-muted">${sub||''}</p></div>`; };
+            renderProgress('מפעיל חיפוש...', 'שולח בקשה ל-GitHub Actions');
 
-            // Trigger Google Search workflow
+            // Capture pre-dispatch run ID so we can find OUR run
+            const runsBefore = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/google-search.yml/runs?per_page=1`, {
+                headers: { 'Authorization': `token ${GH_TOKEN}` }
+            }).then(r => r.ok ? r.json() : {workflow_runs:[]}).catch(() => ({workflow_runs:[]}));
+            const lastRunId = runsBefore.workflow_runs?.[0]?.id || 0;
+
+            // Trigger workflow
             try {
                 const dispatchResp = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/google-search.yml/dispatches`, {
                     method: 'POST',
-                    headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' },
+                    headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ref: 'master', inputs: { query: query, type: googleSearchFilter || 'web' } })
                 });
                 if (dispatchResp.status !== 204) {
-                    el.innerHTML = '<div class="text-center py-4 text-danger"><i class="bi bi-exclamation-circle fs-2 d-block mb-2"></i><p>שגיאה בהפעלת חיפוש: ' + dispatchResp.status + '</p></div>';
+                    const errTxt = await dispatchResp.text().catch(() => '');
+                    el.innerHTML = `<div class="text-center py-4 text-danger"><i class="bi bi-exclamation-circle fs-2 d-block mb-2"></i><p>שגיאה בהפעלת חיפוש: HTTP ${dispatchResp.status}</p><pre class="small text-start" style="max-height:150px;overflow:auto">${escapeHtml(errTxt.slice(0,400))}</pre><button class="btn btn-sm btn-outline-primary mt-2" onclick="googleSearch()">נסה שוב</button></div>`;
                     return;
                 }
             } catch(e) {
-                el.innerHTML = '<div class="text-center py-4 text-danger"><i class="bi bi-wifi-off fs-2 d-block mb-2"></i><p>שגיאת רשת.</p></div>';
+                el.innerHTML = `<div class="text-center py-4 text-danger"><i class="bi bi-wifi-off fs-2 d-block mb-2"></i><p>שגיאת רשת: ${escapeHtml(e.message)}</p></div>`;
                 return;
             }
 
-            // Poll for results via GitHub API (no CDN cache, always fresh)
-            for (let i = 0; i < 30; i++) {
-                await new Promise(r => setTimeout(r, 2500));
+            // Phase 1: Wait for our run to appear (workflow_dispatch is async, run shows up 1-3s later)
+            let myRunId = null;
+            for (let i = 0; i < 12; i++) {
+                renderProgress('ממתין שהריצה תתחיל...', `שלב 1/2 · ${i+1}s`);
+                await new Promise(r => setTimeout(r, 1000));
                 try {
-                    const r = await fetch(`https://api.github.com/repos/${REPO}/contents/docs/google_results.json?_=${Date.now()}`, {
-                        headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3.raw', 'Cache-Control': 'no-cache' }
-                    });
-                    if (!r.ok) continue;
-                    const data = await r.json();
-                    if (data.query !== query) continue;
-                    const results = (data.results || []).filter(r => !_CF.check(r.title) && !_CF.checkUrl(r.url || r.link) && !_CF.check(r.snippet || ''));
-                    lastGoogleResults = results;
-                    const filtered = filterGoogleResults(results);
-                    displayGoogleResults(filtered, query);
-                    return;
+                    const runs = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/google-search.yml/runs?per_page=3&_=${Date.now()}`, {
+                        headers: { 'Authorization': `token ${GH_TOKEN}` }
+                    }).then(r => r.json());
+                    const newRun = (runs.workflow_runs || []).find(r => r.id > lastRunId && r.event === 'workflow_dispatch');
+                    if (newRun) { myRunId = newRun.id; break; }
                 } catch(e) {}
             }
-            el.innerHTML = '<div class="text-center py-4 text-warning"><i class="bi bi-clock fs-2 d-block mb-2"></i><p>החיפוש לוקח יותר מהצפוי. נסה שוב בעוד רגע.</p><button class="btn btn-sm btn-outline-primary mt-2" onclick="googleSearch()">נסה שוב</button></div>';
+            if (!myRunId) {
+                el.innerHTML = '<div class="text-center py-4 text-warning"><i class="bi bi-clock fs-2 d-block mb-2"></i><p>הריצה לא התחילה תוך 12 שניות. נסה שוב.</p><button class="btn btn-sm btn-outline-primary mt-2" onclick="googleSearch()">נסה שוב</button></div>';
+                return;
+            }
+
+            // Phase 2: Poll the specific run until completion
+            for (let i = 0; i < 60; i++) {
+                renderProgress('מבצע חיפוש בDuckDuckGo + Bing...', `שלב 2/2 · ${i*2}s`);
+                await new Promise(r => setTimeout(r, 2000));
+                try {
+                    const run = await fetch(`https://api.github.com/repos/${REPO}/actions/runs/${myRunId}?_=${Date.now()}`, {
+                        headers: { 'Authorization': `token ${GH_TOKEN}` }
+                    }).then(r => r.json());
+                    if (run.status === 'completed') {
+                        if (run.conclusion !== 'success') {
+                            el.innerHTML = `<div class="text-center py-4 text-danger"><i class="bi bi-exclamation-triangle fs-2 d-block mb-2"></i><p>הריצה נכשלה: ${escapeHtml(run.conclusion||'')}</p><a href="${run.html_url}" target="_blank" class="btn btn-sm btn-outline-secondary mt-2">צפה בלוג</a></div>`;
+                            return;
+                        }
+                        // Run succeeded — fetch the file
+                        const fr = await fetch(`https://api.github.com/repos/${REPO}/contents/docs/google_results.json?_=${Date.now()}`, {
+                            headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3.raw' }
+                        });
+                        if (!fr.ok) {
+                            el.innerHTML = `<div class="text-center py-4 text-danger"><p>שגיאה בטעינת תוצאות: HTTP ${fr.status}</p></div>`;
+                            return;
+                        }
+                        const data = await fr.json();
+                        const results = (data.results || []).filter(r => !_CF.check(r.title) && !_CF.checkUrl(r.url || r.link) && !_CF.check(r.snippet || ''));
+                        lastGoogleResults = results;
+                        displayGoogleResults(filterGoogleResults(results), query);
+                        return;
+                    }
+                } catch(e) {}
+            }
+            el.innerHTML = '<div class="text-center py-4 text-warning"><i class="bi bi-clock fs-2 d-block mb-2"></i><p>החיפוש לוקח יותר מ-2 דקות. ייתכן שיש עומס. נסה שוב.</p><button class="btn btn-sm btn-outline-primary mt-2" onclick="googleSearch()">נסה שוב</button></div>';
         }
 
         function displayGoogleResults(results, query) {
