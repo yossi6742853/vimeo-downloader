@@ -91,7 +91,9 @@ jobs:
                       print(f"  skip(limit): {asset_url[:80]}")
                       return None
                   full_url = urllib.parse.urljoin(url, asset_url)
-                  ar = requests.get(full_url, headers={**headers, "Referer": url}, timeout=15, stream=True)
+                  # URL-encode any non-latin-1 chars (HTTP headers are latin-1)
+                  safe_referer = urllib.parse.quote(url, safe=":/?#[]@!$&'()*+,;=%")
+                  ar = requests.get(full_url, headers={**headers, "Referer": safe_referer}, timeout=15, stream=True)
                   if ar.status_code != 200:
                       print(f"  fail({ar.status_code}): {full_url[:80]}")
                       return None
