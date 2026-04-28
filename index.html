@@ -160,6 +160,16 @@
         body.dark .url-preview{background:#2a2a4a}
         body.dark .quick-dl-btn{background:rgba(108,92,231,0.15);border-color:#4a4a6a;color:#ccc}
         body.dark .skeleton{background:linear-gradient(90deg,#2a2a4a 25%,#3a3a5a 50%,#2a2a4a 75%);background-size:200% 100%}
+        /* Advanced filter rows */
+        .adv-filter-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+        .adv-filter-row .afr-label{font-size:.75rem;font-weight:700;color:#888;white-space:nowrap;min-width:60px}
+        .adv-filter-chip{border:1px solid #e0e0e0;border-radius:16px;padding:3px 11px;font-size:.75rem;cursor:pointer;transition:all .2s;background:#f5f5f5;color:#555;white-space:nowrap}
+        .adv-filter-chip:hover{background:#e8e0ff;border-color:var(--primary);color:var(--primary)}
+        .adv-filter-chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+        body.dark .adv-filter-chip{background:#2a2a4a;border-color:#4a4a6a;color:#aaa}
+        body.dark .adv-filter-chip:hover{background:#3a3a6a;border-color:var(--primary);color:#ccc}
+        body.dark .adv-filter-chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+        body.dark .adv-filter-row .afr-label{color:#777}
         body.dark .filter-pill{border-color:#4a4a6a;color:#aaa}
         body.dark .recent-search{background:#2a2a4a;color:#ccc}
         body.dark .search-history-dropdown{background:#1e1e32;border-color:#3a3a5a}
@@ -338,6 +348,38 @@
                                 <span class="filter-pill" data-source="Vimeo" onclick="setSearchFilter(this,'Vimeo')"><i class="bi bi-vimeo me-1"></i>Vimeo</span>
                                 <span class="filter-pill" data-source="הידברות" onclick="setSearchFilter(this,'הידברות')"><i class="bi bi-book me-1"></i>הידברות</span>
                                 <span class="filter-pill" data-source="Archive.org" onclick="setSearchFilter(this,'Archive.org')"><i class="bi bi-archive me-1"></i>Archive.org</span>
+                            </div>
+                            <!-- Advanced filters -->
+                            <div id="advFiltersBar" class="mb-2">
+                                <div class="adv-filter-row">
+                                    <span class="afr-label"><i class="bi bi-calendar3 me-1"></i>תאריך:</span>
+                                    <span class="adv-filter-chip active" data-filter="date" data-val="all" onclick="setAdvFilter('date',this)">הכל</span>
+                                    <span class="adv-filter-chip" data-filter="date" data-val="today" onclick="setAdvFilter('date',this)">היום</span>
+                                    <span class="adv-filter-chip" data-filter="date" data-val="week" onclick="setAdvFilter('date',this)">השבוע</span>
+                                    <span class="adv-filter-chip" data-filter="date" data-val="month" onclick="setAdvFilter('date',this)">החודש</span>
+                                    <span class="adv-filter-chip" data-filter="date" data-val="year" onclick="setAdvFilter('date',this)">השנה</span>
+                                </div>
+                                <div class="adv-filter-row">
+                                    <span class="afr-label"><i class="bi bi-clock me-1"></i>אורך:</span>
+                                    <span class="adv-filter-chip active" data-filter="duration" data-val="all" onclick="setAdvFilter('duration',this)">הכל</span>
+                                    <span class="adv-filter-chip" data-filter="duration" data-val="short" onclick="setAdvFilter('duration',this)">קצר (&lt; 5 דק)</span>
+                                    <span class="adv-filter-chip" data-filter="duration" data-val="medium" onclick="setAdvFilter('duration',this)">בינוני (5-20 דק)</span>
+                                    <span class="adv-filter-chip" data-filter="duration" data-val="long" onclick="setAdvFilter('duration',this)">ארוך (&gt; 20 דק)</span>
+                                </div>
+                                <div class="adv-filter-row">
+                                    <span class="afr-label"><i class="bi bi-sort-down me-1"></i>מיון:</span>
+                                    <span class="adv-filter-chip active" data-filter="sort" data-val="relevance" onclick="setAdvFilter('sort',this)">רלוונטיות</span>
+                                    <span class="adv-filter-chip" data-filter="sort" data-val="date" onclick="setAdvFilter('sort',this)">תאריך</span>
+                                    <span class="adv-filter-chip" data-filter="sort" data-val="views" onclick="setAdvFilter('sort',this)">צפיות</span>
+                                </div>
+                                <div class="adv-filter-row">
+                                    <span class="afr-label"><i class="bi bi-collection me-1"></i>סוג:</span>
+                                    <span class="adv-filter-chip active" data-filter="type" data-val="all" onclick="setAdvFilter('type',this)">הכל</span>
+                                    <span class="adv-filter-chip" data-filter="type" data-val="video" onclick="setAdvFilter('type',this)"><i class="bi bi-film me-1"></i>סרטונים</span>
+                                    <span class="adv-filter-chip" data-filter="type" data-val="audio" onclick="setAdvFilter('type',this)"><i class="bi bi-music-note me-1"></i>שמע</span>
+                                    <span class="adv-filter-chip" data-filter="type" data-val="image" onclick="setAdvFilter('type',this)"><i class="bi bi-image me-1"></i>תמונות</span>
+                                    <span class="adv-filter-chip" data-filter="type" data-val="doc" onclick="setAdvFilter('type',this)"><i class="bi bi-file-earmark-text me-1"></i>מסמכים</span>
+                                </div>
                             </div>
                             <!-- Recent searches (inline chips) -->
                             <div id="recentSearches" class="mb-3 d-none"></div>
@@ -1003,14 +1045,82 @@
         // === Search filter ===
         let searchViewMode = 'list';
         function setSearchFilter(el, source) {
-            document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('#filterPillsBar .filter-pill').forEach(p => p.classList.remove('active'));
             el.classList.add('active');
             currentSearchFilter = source;
             if (lastSearchResults.length) {
-                const filtered = source === 'all' ? lastSearchResults : lastSearchResults.filter(v => v.source === source);
-                displayResults(filtered, document.getElementById('searchInput').value);
+                applyAllFilters();
             }
         }
+        // === Advanced filters state ===
+        let advFilters = { date: 'all', duration: 'all', sort: 'relevance', type: 'all' };
+
+        function setAdvFilter(category, el) {
+            advFilters[category] = el.dataset.val;
+            document.querySelectorAll(`.adv-filter-chip[data-filter="${category}"]`).forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            applyAllFilters();
+        }
+
+        function applyAllFilters() {
+            if (!lastSearchResults.length) return;
+            let filtered = currentSearchFilter === 'all' ? [...lastSearchResults] : lastSearchResults.filter(v => v.source === currentSearchFilter);
+
+            // Date filter
+            if (advFilters.date !== 'all') {
+                const now = new Date();
+                filtered = filtered.filter(v => {
+                    if (!v.date) return false;
+                    const d = new Date(v.date);
+                    if (isNaN(d)) return false;
+                    const diffMs = now - d;
+                    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+                    switch (advFilters.date) {
+                        case 'today': return diffDays < 1;
+                        case 'week': return diffDays < 7;
+                        case 'month': return diffDays < 30;
+                        case 'year': return diffDays < 365;
+                        default: return true;
+                    }
+                });
+            }
+
+            // Duration filter
+            if (advFilters.duration !== 'all') {
+                filtered = filtered.filter(v => {
+                    const dur = v.duration || 0;
+                    switch (advFilters.duration) {
+                        case 'short': return dur > 0 && dur < 300;
+                        case 'medium': return dur >= 300 && dur <= 1200;
+                        case 'long': return dur > 1200;
+                        default: return true;
+                    }
+                });
+            }
+
+            // Type filter
+            if (advFilters.type !== 'all') {
+                filtered = filtered.filter(v => {
+                    const ft = detectFileType(v.url || '');
+                    return ft.type === advFilters.type;
+                });
+            }
+
+            // Sort
+            if (advFilters.sort === 'date') {
+                filtered.sort((a, b) => {
+                    const da = a.date ? new Date(a.date) : new Date(0);
+                    const db = b.date ? new Date(b.date) : new Date(0);
+                    return db - da;
+                });
+            } else if (advFilters.sort === 'views') {
+                filtered.sort((a, b) => (b.views || 0) - (a.views || 0));
+            }
+            // 'relevance' = original order, no sort needed
+
+            displayResults(filtered, document.getElementById('searchInput').value);
+        }
+
         function toggleSearchView(mode) {
             searchViewMode = mode;
             document.querySelectorAll('.view-toggle .btn').forEach(b => b.classList.remove('active'));
