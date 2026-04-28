@@ -1903,11 +1903,13 @@
                 return;
             }
 
-            // Poll for results
-            for (let i = 0; i < 20; i++) {
-                await new Promise(r => setTimeout(r, 3000));
+            // Poll for results via GitHub API (no CDN cache, always fresh)
+            for (let i = 0; i < 30; i++) {
+                await new Promise(r => setTimeout(r, 2500));
                 try {
-                    const r = await fetch(`${GOOGLE_RESULTS_URL}?_=${Date.now()}`);
+                    const r = await fetch(`https://api.github.com/repos/${REPO}/contents/docs/google_results.json?_=${Date.now()}`, {
+                        headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3.raw', 'Cache-Control': 'no-cache' }
+                    });
                     if (!r.ok) continue;
                     const data = await r.json();
                     if (data.query !== query) continue;
