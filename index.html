@@ -597,12 +597,17 @@
 
                     <!-- Feedback box -->
                     <div class="main-card p-3 mb-3">
-                        <div class="small fw-bold mb-2"><i class="bi bi-chat-dots me-1"></i>בקשות שיפור (נבדק כל 10 דקות)</div>
+                        <div class="small fw-bold mb-2 d-flex align-items-center gap-2">
+                            <i class="bi bi-chat-dots"></i>
+                            <span>בקשות שיפור — Claude מטפל ועונה כל 10 דקות</span>
+                            <button class="btn btn-sm btn-link p-0 ms-auto" onclick="loadFeedbackThread()" data-bs-toggle="tooltip" title="רענן הודעות"><i class="bi bi-arrow-clockwise"></i></button>
+                        </div>
                         <div class="d-flex align-items-center gap-2">
                             <input type="text" id="feedbackInput" class="form-control form-control-sm" placeholder="מה לשפר? מה חסר? מה לא עובד?" onkeydown="if(event.key==='Enter')sendFeedback()">
                             <button class="btn btn-sm btn-download text-white px-3" onclick="sendFeedback()" data-bs-toggle="tooltip" title="שלח משוב"><i class="bi bi-send"></i></button>
                         </div>
                         <div id="feedbackStatus" class="small text-muted mt-1 d-none"></div>
+                        <div id="feedbackThread" class="mt-3" style="max-height:340px;overflow-y:auto"></div>
                     </div>
 
                     <div class="text-center small" style="position:relative;z-index:1">
@@ -1691,20 +1696,60 @@
                     headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
                 });
                 const file = await r.json();
-                const current = JSON.parse(atob(file.content));
-                current.messages.push({ text: msg, time: new Date().toISOString() });
+                const raw = decodeURIComponent(escape(atob(file.content)));
+                const current = JSON.parse(raw);
+                if (!Array.isArray(current.messages)) current.messages = [];
+                current.messages.push({ id: 'm_' + Date.now(), text: msg, time: new Date().toISOString(), status: 'pending' });
                 await fetch(`https://api.github.com/repos/${REPO}/contents/docs/feedback.json`, {
                     method: 'PUT',
                     headers: { 'Authorization': `token ${GH_TOKEN}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: 'feedback', content: btoa(unescape(encodeURIComponent(JSON.stringify(current)))), sha: file.sha })
+                    body: JSON.stringify({ message: 'feedback', content: btoa(unescape(encodeURIComponent(JSON.stringify(current,null,1)))), sha: file.sha })
                 });
-                st.textContent = 'נשלח! אטפל בזה.';
+                st.textContent = 'נשלח! אטפל בזה תוך 10 דק׳ לכל היותר.';
                 document.getElementById('feedbackInput').value = '';
                 showToast('ההודעה נשלחה!', 'success');
+                loadFeedbackThread();
             } catch(e) {
                 st.textContent = 'שגיאה: ' + e.message;
             }
         }
+
+        async function loadFeedbackThread() {
+            const el = document.getElementById('feedbackThread');
+            if (!el) return;
+            try {
+                const r = await fetch(`https://raw.githubusercontent.com/${REPO}/master/docs/feedback.json?_=${Date.now()}`);
+                if (!r.ok) return;
+                const data = await r.json();
+                const msgs = (data.messages || []).slice(-15).reverse();
+                if (!msgs.length) { el.innerHTML = ''; return; }
+                el.innerHTML = msgs.map(m => {
+                    const t = new Date(m.time || Date.now()).toLocaleString('he-IL', {hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});
+                    const statusBadge = m.status === 'done' ? '<span class="badge bg-success">טופל</span>' : (m.status === 'in_progress' ? '<span class="badge bg-warning text-dark">בעבודה</span>' : '<span class="badge bg-secondary">ממתין</span>');
+                    let text = m.text || '';
+                    // Try double-decode for legacy mojibake messages
+                    try {
+                        if (/Ã[ÂÂ¢¤§¨©ªb-z]/.test(text)) {
+                            const decoded = decodeURIComponent(escape(text));
+                            if (/[֐-׿]/.test(decoded)) text = decoded;
+                        }
+                    } catch(e){}
+                    const reply = m.reply ? `<div class="mt-2 ps-2 border-start border-success border-2"><div class="small text-success fw-bold mb-1"><i class="bi bi-robot me-1"></i>תגובת Claude · ${m.reply_time ? new Date(m.reply_time).toLocaleString('he-IL',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}) : ''}</div><div class="small" style="white-space:pre-wrap">${escapeHtml(m.reply)}</div></div>` : '';
+                    return `<div class="border rounded p-2 mb-2" style="background:rgba(255,255,255,0.04)">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div class="small fw-bold" style="white-space:pre-wrap">${escapeHtml(text)}</div>
+                            ${statusBadge}
+                        </div>
+                        <div class="text-muted" style="font-size:.7rem">${t}</div>
+                        ${reply}
+                    </div>`;
+                }).join('');
+            } catch(e) {}
+        }
+        function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+        // Auto-load on startup, then refresh every 60s
+        setTimeout(loadFeedbackThread, 1500);
+        setInterval(loadFeedbackThread, 60000);
 
         // === Push Notifications ===
         async function requestNotifications() {
