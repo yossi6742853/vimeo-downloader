@@ -153,13 +153,19 @@ jobs:
       - name: Commit record
         if: always()
         run: |
+          set +e
           git config user.name "VideoGrab Bot"
           git config user.email "bot@videograb.local"
-          git add docs/last_downloads.json 2>/dev/null || true
+          ls -la docs/last_downloads.json 2>&1 || echo "No file"
+          git add docs/last_downloads.json
+          git status --short
           if ! git diff --staged --quiet; then
+            git commit -m "Record download $(date +%H%M%S)"
             for i in 1 2 3; do
-              git pull --rebase origin master 2>/dev/null || true
-              git push 2>/dev/null && break
+              git pull --rebase origin master
+              git push && break
               sleep 2
             done
+          else
+            echo "Nothing to commit"
           fi
