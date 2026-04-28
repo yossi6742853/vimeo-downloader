@@ -49,7 +49,7 @@
         .search-grid .video-info{padding:12px}
         .search-grid .video-title{font-size:.92rem}
         .search-grid .video-desc{display:none}
-        .search-grid .video-dl-btn{position:absolute;top:8px;left:8px}
+        .search-grid .video-dl-btn{position:absolute;top:8px;left:8px;min-width:auto!important}
         .search-grid .video-result{position:relative}
         /* Search results header */
         .search-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #eee}
@@ -776,8 +776,15 @@
             showToast('העתק קישור מהאתר והדבק כאן', 'info');
         }
 
+        // === Download from search results with per-result quality/format ===
+        function startDownloadWithOpts(url, qualityId, formatId) {
+            const q = document.getElementById(qualityId)?.value || '720';
+            const f = document.getElementById(formatId)?.value || 'video';
+            startDownload(url, f, q);
+        }
+
         // === Download with content filter + progress tracking ===
-        async function startDownload(url) {
+        async function startDownload(url, overrideFormat, overrideQuality) {
             if (!url || !url.startsWith('http')) { showToast('הכנס קישור תקין', 'error'); return; }
 
             // CONTENT FILTER - CANNOT BE BYPASSED
@@ -796,8 +803,8 @@
             switchTab('queue');
 
             try {
-                const format = document.getElementById('formatSelect')?.value || 'video';
-                const quality = document.getElementById('qualitySelect')?.value || '720';
+                const format = overrideFormat || document.getElementById('formatSelect')?.value || 'video';
+                const quality = overrideQuality || document.getElementById('qualitySelect')?.value || '720';
                 const inputs = { url };
                 if (workflow === 'download-to-drive.yml') {
                     inputs.format = format;
@@ -1203,7 +1210,21 @@
                                 ${v.duration > 0 ? `<span><i class="bi bi-clock me-1"></i>${Math.ceil(v.duration/60)} דק'</span>` : ''}
                             </div>
                         </div>
-                        <button class="btn btn-sm btn-download text-white px-3 video-dl-btn" onclick="event.stopPropagation();startDownload('${v.url}')" data-bs-toggle="tooltip" title="הורד לדרייב"><i class="bi bi-download"></i></button>
+                        <div class="d-flex flex-column align-items-end gap-1 video-dl-btn" style="min-width:110px">
+                            <div class="d-flex gap-1 w-100">
+                                <select class="form-select form-select-sm" id="sq_${videos.indexOf(v)}" style="font-size:.7rem;padding:2px 4px;border-radius:6px;width:auto">
+                                    <option value="best">best</option>
+                                    <option value="720" selected>720p</option>
+                                    <option value="480">480p</option>
+                                    <option value="360">360p</option>
+                                </select>
+                                <select class="form-select form-select-sm" id="sf_${videos.indexOf(v)}" style="font-size:.7rem;padding:2px 4px;border-radius:6px;width:auto">
+                                    <option value="video">וידאו</option>
+                                    <option value="audio">שמע</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-sm btn-download text-white px-3 w-100" onclick="event.stopPropagation();startDownloadWithOpts('${v.url}','sq_${videos.indexOf(v)}','sf_${videos.indexOf(v)}')" data-bs-toggle="tooltip" title="הורד לדרייב"><i class="bi bi-download me-1"></i>הורד</button>
+                        </div>
                     </div>
                 </div>`;
             }
