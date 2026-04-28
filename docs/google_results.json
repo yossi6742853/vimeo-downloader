@@ -45,13 +45,6 @@
    "type": "web"
   },
   {
-   "title": "+12 | מה שאתם אוהבים לראות, פלוס - mako",
-   "url": "https://www.mako.co.il/mako-vod",
-   "snippet": "אתר ה-VOD שלערוץ12- הטלוויזיה של ישראל. שידור לייב וספריית התכנים של הסדרות הנצפות בישראל מבית קשת. +12 מה שאתם אוהבים לראות +",
-   "source": "DuckDuckGo",
-   "type": "web"
-  },
-  {
    "title": "ערוץ 12 שידור חי - IsraMedia - ישראמדיה",
    "url": "https://www.isramedia.net/12/%D7%A2%D7%A8%D7%95%D7%A6%D7%99%D7%9D-%D7%9E%D7%99%D7%A9%D7%A8%D7%90%D7%9C/%D7%A2%D7%A8%D7%95%D7%A5-12-%D7%A9%D7%99%D7%93%D7%95%D7%A8-%D7%97%D7%99",
    "snippet": "שידור ישיר שלערוץ12לייב. שידור חי של חדשות, תוכניות פופולאריות כמו: חתונה ממבט ראשון, הכרישים, מאסטר שף, חתונה ממבט ראשון, המירוץ למיליון ועוד.",
@@ -59,20 +52,27 @@
    "type": "web"
   },
   {
-   "title": "+12 - Israeli channel 12 live - Apps on Google Play",
-   "url": "https://play.google.com/store/apps/details?id=com.keshet.mako.VOD.intl&hl=en-US",
-   "snippet": "Welcome to 12+, Keshet12's new streaming app, with all of Israel's most popular shows and stars. Download 12+ to your TV, smartphone, and tablet and enjoy the most advanced and convenient way to watch Keshet12's live broadcast and VOD back catalogue, with decades of excellent series as well as exclu",
+   "title": "ערוץ 12 קשת - Top Tv",
+   "url": "https://top-tv.co.il/channel/12/",
+   "snippet": "בהשתתפות פאנל הפרשנים, בן כספית ועמית סגל. כ' סמ'. שידור חי. בהגשת יונית לוי. כל ערב הכתבים והפרשנים של החדשות12מעדכנים על האירועים הבולטים שהיו, וחושפים את מה שאחרים מנסים להסתיר. כ' סמ'. שידור חי.",
    "source": "DuckDuckGo",
    "type": "web"
   },
   {
-   "title": "ערוץ 12 צפייה ישירה לייב - mako",
-   "url": "https://www.mako.co.il/tv-live/Article-90408c620b8df81026.htm",
-   "snippet": "המהדורה המרכזית, אולפן שישי, נינג'ה ישראל, מאסטר שף, הכוכב הבא, חתונה ממבט ראשון, ארץ נהדרת, עובדה, גיא פינס, חדשות12, חדשות הבוקר, פאולה וליאון, חדשות סוף השבוע, חי בלילה - שידור ישיר שלערוץ12כל השבוע",
+   "title": "קשת 12 - הטלוויזיה של הישראלים - YouTube",
+   "url": "https://www.youtube.com/channel/UC5KbmHkBV59FzJ-Dr5wfrKg",
+   "snippet": "עמוד היוטיוב הרשמי של קשת12- הטלוויזיה של ישראלים כל התכניות והסדרות הכי אהובות וטובות בטלוויזיה רק כאן ...",
+   "source": "DuckDuckGo",
+   "type": "web"
+  },
+  {
+   "title": "כאן 11: חדשות, רדיו, טלוויזיה, שידור חי - תאגיד השידור הישראלי",
+   "url": "https://www.kan.org.il/",
+   "snippet": "באתר כאן [תאגיד השידור הישראלי] מחכים לכם מגוון ענק של תכנים! חדשות בארץ ובעולם, תוכניות טלוויזיה מומלצות לצפייה ישירה, שידורים חיים, פודקאסטים, תחנות רדיו ועוד.",
    "source": "DuckDuckGo",
    "type": "web"
   }
  ],
  "count": 10,
- "time": 1777402083169
+ "time": 1777402269491
 }
