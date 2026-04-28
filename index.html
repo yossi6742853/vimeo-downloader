@@ -1038,34 +1038,43 @@
             searchStartTime = performance.now();
 
             const results = document.getElementById('searchResults');
+            const cacheKey = query.toLowerCase().trim();
 
             // Show cached results immediately if available
-            const cacheKey = query.toLowerCase().trim();
             if (searchCache[cacheKey]) {
-                const cached = searchCache[cacheKey];
-                lastSearchResults = cached;
-                const filtered = currentSearchFilter === 'all' ? cached : cached.filter(v => v.source === currentSearchFilter);
+                lastSearchResults = searchCache[cacheKey];
+                const filtered = currentSearchFilter === 'all' ? searchCache[cacheKey] : searchCache[cacheKey].filter(v => v.source === currentSearchFilter);
                 displayResults(filtered, query, true);
-            }
-
-            // Show YouTube-style skeleton loading
-            if (!searchCache[cacheKey]) {
+            } else {
                 results.innerHTML = buildSkeletonHTML();
             }
 
-            // Trigger GitHub Actions search
+            // FAST: YouTube search via Apps Script (2 seconds!)
+            const YT_API = 'https://script.google.com/macros/s/AKfycbx6P8RJi1PCYl_fAnblzQ4wCm2KwkORszbOyVQgVGnjjuPX0QS1n1tCNSdh38jBWayXtQ/exec';
+            try {
+                const ytResp = await fetch(`${YT_API}?q=${encodeURIComponent(query)}`);
+                if (ytResp.ok) {
+                    const ytData = await ytResp.json();
+                    const safe = (ytData.results || []).filter(v => !v.error && !_CF.check(v.title) && !_CF.checkUrl(v.url));
+                    if (safe.length > 0) {
+                        lastSearchResults = safe;
+                        searchCache[cacheKey] = safe;
+                        const filtered = currentSearchFilter === 'all' ? safe : safe.filter(v => v.source === currentSearchFilter);
+                        displayResults(filtered, query, false);
+                    }
+                }
+            } catch(e) { console.log('Fast search error:', e); }
+
+            // SLOW: Also trigger GitHub Actions for more sources (Dailymotion, Vimeo, etc.)
             fetch(`https://api.github.com/repos/${REPO}/actions/workflows/search.yml/dispatches`, {
                 method: 'POST',
                 headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' },
                 body: JSON.stringify({ ref: 'master', inputs: { query: query } })
             }).catch(() => {});
 
-            // Poll for completed workflow
-            for (let i = 0; i < 24; i++) {
+            // Poll for GitHub Actions results (adds more sources)
+            for (let i = 0; i < 12; i++) {
                 await new Promise(r => setTimeout(r, 5000));
-                const elapsed = Math.round((performance.now() - searchStartTime) / 1000);
-                const skeletonTimer = results.querySelector('.search-timer');
-                if (skeletonTimer) skeletonTimer.textContent = `${elapsed} שניות`;
                 try {
                     const runsResp = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/search.yml/runs?per_page=1`, {
                         headers: { 'Authorization': `token ${GH_TOKEN}` }
@@ -1080,9 +1089,14 @@
                             const data = await jsonResp.json();
                             if (data.query === query || data.query?.includes(query.split(' ')[0])) {
                                 const safe = data.results.filter(v => !_CF.check(v.title) && !_CF.checkUrl(v.url));
-                                lastSearchResults = safe;
-                                searchCache[cacheKey] = safe;
-                                const filtered = currentSearchFilter === 'all' ? safe : safe.filter(v => v.source === currentSearchFilter);
+                                // Merge with existing YouTube results
+                                const merged = [...(searchCache[cacheKey] || [])];
+                                for (const r of safe) {
+                                    if (!merged.find(m => m.url === r.url)) merged.push(r);
+                                }
+                                lastSearchResults = merged;
+                                searchCache[cacheKey] = merged;
+                                const filtered = currentSearchFilter === 'all' ? merged : merged.filter(v => v.source === currentSearchFilter);
                                 displayResults(filtered, query, false);
                                 return;
                             }
