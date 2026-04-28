@@ -1,0 +1,75 @@
+name: Fetch Page (NetFree-bypass proxy)
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'URL to fetch and proxy'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch page content
+        run: |
+          set +e
+          mkdir -p docs/preview
+          URL="${{ github.event.inputs.url }}"
+          HASH=$(echo -n "$URL" | sha1sum | cut -c1-16)
+          OUT="docs/preview/${HASH}.html"
+          echo "Fetching: $URL → $OUT"
+          curl -sL --max-time 30 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" "$URL" -o "/tmp/raw.html"
+          if [ -s "/tmp/raw.html" ]; then
+            python3 - <<PY
+          import sys, html, re, os, urllib.parse
+          url = "$URL"
+          base = urllib.parse.urlparse(url)._replace(path='', query='', fragment='').geturl()
+          with open('/tmp/raw.html','rb') as f:
+              raw = f.read()
+          # Try utf-8, then windows-1255 (Hebrew), then latin-1
+          for enc in ['utf-8','windows-1255','latin-1']:
+              try:
+                  text = raw.decode(enc)
+                  break
+              except: continue
+          # Inject base tag and content-security headers to make it self-contained
+          base_tag = f'<base href="{base}/">'
+          if '<head' in text:
+              text = re.sub(r'(<head[^>]*>)', r'\1' + base_tag, text, count=1, flags=re.I)
+          else:
+              text = base_tag + text
+          # Strip frame-busting JS
+          text = re.sub(r'if\s*\(\s*top\s*!==?\s*self\s*\)[^;]*;', '', text, flags=re.I)
+          text = re.sub(r'if\s*\(\s*self\s*!==?\s*top\s*\)[^;]*;', '', text, flags=re.I)
+          os.makedirs('docs/preview', exist_ok=True)
+          with open("$OUT",'w',encoding='utf-8') as f:
+              f.write(text)
+          print(f"Saved {len(text)} chars to $OUT")
+          PY
+          else
+            echo "<!DOCTYPE html><html><body style=font-family:Arial;padding:30px;text-align:center><h2>שגיאה בטעינת הדף</h2><p>הדף לא הצליח להיטען מהשרת.</p></body></html>" > "$OUT"
+          fi
+
+      - name: Commit
+        if: always()
+        run: |
+          set +e
+          git config user.name "VideoGrab Bot"
+          git config user.email "bot@videograb.local"
+          git add docs/preview/
+          if ! git diff --staged --quiet; then
+            git commit -m "Proxy: ${{ github.event.inputs.url }}"
+            for i in 1 2 3; do
+              git pull --rebase origin master
+              git push && break
+              sleep 2
+            done
+          else
+            echo "Nothing to commit"
+          fi

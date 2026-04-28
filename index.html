@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>VideoGrab v6.5 - הורדת קבצים לדרייב + מחשב</title>
+    <title>VideoGrab v6.6 - הורדת קבצים לדרייב + מחשב</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#6c5ce7">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
@@ -278,7 +278,7 @@
                 <div class="col-lg-9">
                     <div class="text-center mb-4" style="position:relative;z-index:1">
                         <div class="logo-icon"><i class="bi bi-cloud-arrow-down-fill"></i></div>
-                        <div class="logo-title">VideoGrab <span class="version-badge">v6.5</span></div>
+                        <div class="logo-title">VideoGrab <span class="version-badge">v6.6</span></div>
                         <p class="logo-sub">הורד סרטונים, מצגות, תמונות ומסמכים מכל אתר — ישירות ל-Google Drive</p>
                         <div class="mt-2">
                             <span class="site-badge"><i class="bi bi-film me-1"></i>סרטונים</span>
@@ -357,11 +357,18 @@
                             <div class="form-check mb-2 d-flex align-items-center" style="padding-right:1.5em">
                                 <input class="form-check-input ms-2" type="checkbox" id="downloadToPcCheck" style="margin-right:0;margin-left:.5rem">
                                 <label class="form-check-label small fw-bold" for="downloadToPcCheck" style="cursor:pointer">
-                                    <i class="bi bi-pc-display me-1"></i>הורד גם למחשב (אוטומטית)
+                                    <i class="bi bi-pc-display me-1"></i>הורד גם למחשב (דרך הדרייב)
                                 </label>
                             </div>
-                            <button class="btn btn-download text-white w-100" onclick="startDownload(document.getElementById('urlInput').value)" data-bs-toggle="tooltip" title="הורד את הקובץ לדרייב">
-                                <i class="bi bi-cloud-arrow-down me-2"></i>הורד לדרייב
+                            <div class="form-check mb-2 d-flex align-items-center" style="padding-right:1.5em">
+                                <input class="form-check-input ms-2" type="checkbox" id="directPcCheck" style="margin-right:0;margin-left:.5rem">
+                                <label class="form-check-label small fw-bold text-success" for="directPcCheck" style="cursor:pointer">
+                                    <i class="bi bi-lightning-charge me-1"></i>הורדה ישירה למחשב (דלג על דרייב)
+                                    <span class="badge bg-warning text-dark ms-1" data-bs-toggle="tooltip" title="צריך להריץ videograb_pc_watcher.py על המחשב">דורש סקריפט מקומי</span>
+                                </label>
+                            </div>
+                            <button class="btn btn-download text-white w-100" onclick="startDownload(document.getElementById('urlInput').value)" data-bs-toggle="tooltip" title="הורד את הקובץ">
+                                <i class="bi bi-cloud-arrow-down me-2"></i>הורד
                             </button>
                             <div class="mt-3">
                                 <a href="#" class="text-decoration-none small" onclick="document.getElementById('multiArea').classList.toggle('d-none');return false">
@@ -590,7 +597,7 @@
 
                             <!-- Version info -->
                             <div class="text-center text-muted small mt-3">
-                                <i class="bi bi-info-circle me-1"></i>גרסה <strong>v6.5</strong> | VideoGrab
+                                <i class="bi bi-info-circle me-1"></i>גרסה <strong>v6.6</strong> | VideoGrab
                             </div>
                         </div>
                     </div>
@@ -611,7 +618,7 @@
                     </div>
 
                     <div class="text-center small" style="position:relative;z-index:1">
-                        <p class="text-white-50"><i class="bi bi-shield-check me-1"></i>מסנן תוכן פעיל | <i class="bi bi-folder2 me-1"></i>קבצים מגיעים ל"סרטונים שהורדו" בדרייב | <span class="version-badge">v6.5</span></p>
+                        <p class="text-white-50"><i class="bi bi-shield-check me-1"></i>מסנן תוכן פעיל | <i class="bi bi-folder2 me-1"></i>קבצים מגיעים ל"סרטונים שהורדו" בדרייב | <span class="version-badge">v6.6</span></p>
                         <div class="d-flex justify-content-center gap-2 flex-wrap">
                             <button class="btn btn-sm text-white-50" onclick="toggleDark()" id="darkBtn" data-bs-toggle="tooltip" title="החלף מצב תצוגה"><i class="bi bi-moon me-1"></i>מצב כהה</button>
                             <button class="btn btn-sm text-white-50" onclick="installPWA()" id="installBtn" style="display:none" data-bs-toggle="tooltip" title="התקן כאפליקציה"><i class="bi bi-download me-1"></i>התקן כאפליקציה</button>
@@ -923,6 +930,14 @@
 
             if (!GH_TOKEN) { new bootstrap.Modal(document.getElementById('setupModal')).show(); return; }
 
+            // === Direct-to-PC mode: bypass Drive entirely ===
+            const directPc = document.getElementById('directPcCheck')?.checked;
+            if (directPc) {
+                const quality = overrideQuality || document.getElementById('qualitySelect')?.value || 'best';
+                await addToPcQueue(url, quality);
+                return;
+            }
+
             const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
             const isGemini = url.includes('gemini.google.com/share/');
             const workflow = isGemini ? 'gemini-to-drive.yml' : (isYouTube ? 'youtube-to-drive.yml' : 'download-to-drive.yml');
@@ -1013,6 +1028,41 @@
         }
 
         // === Trigger PC download from Drive (uses public link set by workflow) ===
+        // === Add URL to PC queue (for the local watcher script) ===
+        async function addToPcQueue(url, quality) {
+            try {
+                const r = await fetch(`https://api.github.com/repos/${REPO}/contents/docs/pc_queue.json`, {
+                    headers: { 'Authorization': `token ${GH_TOKEN}` }
+                });
+                const file = await r.json();
+                let current;
+                try {
+                    current = JSON.parse(decodeURIComponent(escape(atob(file.content))));
+                } catch(e) { current = { items: [] }; }
+                if (!Array.isArray(current.items)) current.items = [];
+                current.items.push({ url, quality: quality || 'best', time: new Date().toISOString() });
+                // Keep only last 100
+                if (current.items.length > 100) current.items = current.items.slice(-100);
+                const putResp = await fetch(`https://api.github.com/repos/${REPO}/contents/docs/pc_queue.json`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `token ${GH_TOKEN}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: 'PC queue: ' + url.substring(0, 60),
+                        content: btoa(unescape(encodeURIComponent(JSON.stringify(current, null, 1)))),
+                        sha: file.sha
+                    })
+                });
+                if (putResp.ok) {
+                    showToast('נוסף לתור הורדה ישירה למחשב — הסקריפט המקומי יוריד תוך 20 שניות', 'success');
+                    sendNotification('VideoGrab', 'URL נוסף לתור ההורדה למחשב');
+                } else {
+                    showToast('שגיאה בהוספה לתור: ' + putResp.status, 'error');
+                }
+            } catch(e) {
+                showToast('שגיאה: ' + e.message, 'error');
+            }
+        }
+
         async function triggerPcDownload(qItem) {
             try {
                 // Wait for the workflow's commit to land in last_downloads.json
@@ -1814,9 +1864,12 @@
 
         function loadSettings() {
             const settings = JSON.parse(localStorage.getItem('vg_settings') || '{}');
-            if (settings.defaultQuality) {
-                document.getElementById('qualitySelect').value = settings.defaultQuality;
+            // v6.6+ migration: force quality default to 'best' if user has stale '720'
+            if (!settings.defaultQuality || settings.defaultQuality === '720') {
+                settings.defaultQuality = 'best';
+                localStorage.setItem('vg_settings', JSON.stringify(settings));
             }
+            document.getElementById('qualitySelect').value = settings.defaultQuality;
             if (settings.defaultFormat) {
                 document.getElementById('formatSelect').value = settings.defaultFormat;
             }
@@ -2061,25 +2114,92 @@
             initTooltips();
         }
 
-        // Known sites that block X-Frame-Options — open directly in new tab
-        const IFRAME_BLOCKED = ['youtube.com','youtu.be','facebook.com','instagram.com','twitter.com','x.com','tiktok.com','linkedin.com','google.com','accounts.google.com','docs.google.com','drive.google.com','mail.google.com','ynet.co.il','walla.co.il','mako.co.il','n12.co.il','kikar.co.il','bhol.co.il','jpost.com','haaretz.co.il','calcalist.co.il','globes.co.il','israelhayom.co.il','13tv.co.il','i24news.tv','timesofisrael.com','arutz7.co.il','wikipedia.org','wiktionary.org','reverso.net','morfix.co.il','milog.co.il','glosbe.com','wordhippo.com','pealim.com','howtopronounce.com','reddit.com','quora.com','medium.com','stackoverflow.com','github.com'];
-        function isIframeBlocked(url) {
-            try {
-                const host = new URL(url).hostname.replace(/^www\./,'');
-                return IFRAME_BLOCKED.some(d => host === d || host.endsWith('.'+d));
-            } catch(e) { return true; }
-        }
-
         function openSearchResult(url) {
             if (!url) return;
             if (_CF.checkUrl(url)) { showToast(_CF.msg, 'warning'); return; }
-            // For known-blocked sites: open in new tab immediately
-            if (isIframeBlocked(url)) {
-                window.open(url, '_blank', 'noopener,noreferrer');
-                showToast('אתר זה נפתח בלשונית חדשה (לא ניתן להטמיע)', 'info');
-                return;
-            }
             openInAppViewer(url);
+        }
+
+        // Fetch page via GitHub Actions (NetFree-bypass: content stored on github.io which is whitelisted)
+        async function openViaProxy(url) {
+            if (!GH_TOKEN) { showToast('צריך טוקן GitHub', 'warning'); return; }
+            const old = document.getElementById('inAppViewer');
+            if (old) old.remove();
+            const domain = getDomain(url);
+            const v = document.createElement('div');
+            v.id = 'inAppViewer';
+            v.innerHTML = `<div style="position:fixed;inset:0;background:#fff;z-index:10000;display:flex;flex-direction:column">
+                <div style="background:#202124;color:#fff;padding:8px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0">
+                    <button onclick="closeInAppViewer()" class="btn btn-sm btn-light"><i class="bi bi-arrow-right"></i></button>
+                    <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" style="width:18px;height:18px;border-radius:50%" onerror="this.style.display='none'">
+                    <span style="flex:1;direction:ltr;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.85rem">${escapeHtml(url)} <span class="badge bg-success">דרך פרוקסי</span></span>
+                </div>
+                <div style="flex:1;display:flex;align-items:center;justify-content:center;background:#fff;padding:30px;text-align:center">
+                    <div>
+                        <div class="spinner-border text-primary mb-3" style="width:3rem;height:3rem"></div>
+                        <h5 id="proxyStatus">מוריד את הדף דרך GitHub Actions...</h5>
+                        <p class="text-muted small">הדף יעקוף את נטפרי. ~15-30 שניות בפעם הראשונה.</p>
+                        <p class="small text-muted mt-3"><span id="proxyTimer">0</span> שניות</p>
+                    </div>
+                </div>
+            </div>`;
+            document.body.appendChild(v);
+            document.body.style.overflow = 'hidden';
+            const startTime = Date.now();
+            const timerInt = setInterval(() => {
+                const t = document.getElementById('proxyTimer');
+                if (t) t.textContent = Math.floor((Date.now()-startTime)/1000);
+            }, 500);
+            try {
+                // Get last run before dispatch
+                const before = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/fetch-page.yml/runs?per_page=1`, {headers:{'Authorization':`token ${GH_TOKEN}`}}).then(r=>r.json()).catch(()=>({workflow_runs:[]}));
+                const lastRunId = before.workflow_runs?.[0]?.id || 0;
+                // Dispatch
+                const dr = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/fetch-page.yml/dispatches`, {
+                    method:'POST', headers:{'Authorization':`token ${GH_TOKEN}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+                    body: JSON.stringify({ref:'master', inputs:{url}})
+                });
+                if (dr.status !== 204) {
+                    clearInterval(timerInt);
+                    document.getElementById('proxyStatus').innerText = 'שגיאה: workflow לא הופעל (' + dr.status + ')';
+                    return;
+                }
+                // Poll for our run
+                let myId = null;
+                for (let i = 0; i < 12; i++) {
+                    await new Promise(r => setTimeout(r, 1000));
+                    const runs = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/fetch-page.yml/runs?per_page=3`, {headers:{'Authorization':`token ${GH_TOKEN}`}}).then(r=>r.json()).catch(()=>({workflow_runs:[]}));
+                    const nr = (runs.workflow_runs||[]).find(r => r.id > lastRunId && r.event === 'workflow_dispatch');
+                    if (nr) { myId = nr.id; break; }
+                }
+                if (!myId) { clearInterval(timerInt); document.getElementById('proxyStatus').innerText='הריצה לא התחילה'; return; }
+                document.getElementById('proxyStatus').innerText = 'מבצע פרוקסי על השרת...';
+                // Wait for completion
+                for (let i = 0; i < 90; i++) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    const run = await fetch(`https://api.github.com/repos/${REPO}/actions/runs/${myId}`, {headers:{'Authorization':`token ${GH_TOKEN}`}}).then(r=>r.json());
+                    if (run.status === 'completed') {
+                        clearInterval(timerInt);
+                        if (run.conclusion === 'success') {
+                            // Calculate hash same way as workflow (sha1 of url, first 16 chars)
+                            const enc = new TextEncoder().encode(url);
+                            const hashBuf = await crypto.subtle.digest('SHA-1', enc);
+                            const hash = Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,'0')).join('').substring(0,16);
+                            const proxyUrl = `https://yossi6742853.github.io/vimeo-downloader/preview/${hash}.html`;
+                            // Replace viewer body with iframe
+                            v.querySelector('div[style*="flex:1"]').outerHTML = `<div style="flex:1;position:relative"><iframe src="${proxyUrl}" style="width:100%;height:100%;border:none;display:block" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe></div>`;
+                        } else {
+                            document.getElementById('proxyStatus').innerText = 'הפרוקסי נכשל: ' + (run.conclusion||'');
+                        }
+                        return;
+                    }
+                }
+                clearInterval(timerInt);
+                document.getElementById('proxyStatus').innerText = 'timeout — נסה שוב';
+            } catch(e) {
+                clearInterval(timerInt);
+                if (document.getElementById('proxyStatus')) document.getElementById('proxyStatus').innerText = 'שגיאה: ' + e.message;
+            }
         }
 
         function openInAppViewer(url) {
@@ -2088,33 +2208,39 @@
             if (old) old.remove();
             const v = document.createElement('div');
             v.id = 'inAppViewer';
+            const safeUrl = url.replace(/'/g,"\\'");
             v.innerHTML = `<div style="position:fixed;inset:0;background:#fff;z-index:10000;display:flex;flex-direction:column">
                 <div style="background:#202124;color:#fff;padding:8px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0">
                     <button onclick="closeInAppViewer()" class="btn btn-sm btn-light" data-bs-toggle="tooltip" title="חזור"><i class="bi bi-arrow-right"></i></button>
                     <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" style="width:18px;height:18px;border-radius:50%" onerror="this.style.display='none'">
                     <span style="flex:1;direction:ltr;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.85rem">${escapeHtml(url)}</span>
-                    <button onclick="window.open('${url.replace(/'/g,"\\'")}','_blank','noopener')" class="btn btn-sm btn-outline-light" data-bs-toggle="tooltip" title="פתח בלשונית חדשה"><i class="bi bi-box-arrow-up-right"></i></button>
-                    <button onclick="startDownload('${url.replace(/'/g,"\\'")}')" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" title="הורד"><i class="bi bi-cloud-arrow-down me-1"></i>הורד</button>
+                    <button onclick="startDownload('${safeUrl}')" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" title="הורד"><i class="bi bi-cloud-arrow-down me-1"></i>הורד</button>
                 </div>
                 <div id="iframeWrap" style="flex:1;position:relative;background:#f0f0f0">
                     <div id="iframeLoader" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;z-index:1">
                         <div class="spinner-border text-primary mb-2"></div>
                         <p class="text-muted">טוען את ${escapeHtml(domain)}...</p>
                     </div>
-                    <iframe id="appIframe" src="${url}" style="width:100%;height:100%;border:none;display:block" allow="autoplay; encrypted-media; fullscreen" allowfullscreen onload="window._iframeLoaded=true;document.getElementById('iframeLoader').style.display='none'"></iframe>
+                    <iframe id="appIframe" src="${url}" style="width:100%;height:100%;border:none;display:block" allow="autoplay; encrypted-media; fullscreen" allowfullscreen onload="window._iframeLoaded=true;document.getElementById('iframeLoader').style.display='none';const fb=document.getElementById('iframeFallback');if(fb)fb.style.display='none'"></iframe>
+                    <div id="iframeFallback" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;background:#fff;padding:20px;text-align:center">
+                        <i class="bi bi-shield-exclamation" style="font-size:3rem;color:#ff9800"></i>
+                        <h5 class="mt-3">האתר חוסם טעינה ישירה (X-Frame-Options)</h5>
+                        <p class="text-muted small">${escapeHtml(domain)} לא מאפשר הטמעה. נסה דרך פרוקסי GitHub (עוקף גם נטפרי):</p>
+                        <button onclick="openViaProxy('${safeUrl}')" class="btn btn-success mt-2"><i class="bi bi-shield-check me-1"></i>פתח דרך פרוקסי</button>
+                    </div>
                 </div>
             </div>`;
             document.body.appendChild(v);
             document.body.style.overflow = 'hidden';
             window._iframeLoaded = false;
-            // After 4s, if iframe didn't fire onload, assume blocked → close viewer & open in new tab
             setTimeout(() => {
-                if (!window._iframeLoaded && document.getElementById('inAppViewer')) {
-                    closeInAppViewer();
-                    window.open(url, '_blank', 'noopener,noreferrer');
-                    showToast('האתר חוסם הטמעה — נפתח בלשונית חדשה', 'info');
+                const loader = document.getElementById('iframeLoader');
+                if (!window._iframeLoaded && loader && loader.style.display !== 'none') {
+                    loader.style.display = 'none';
+                    const fb = document.getElementById('iframeFallback');
+                    if (fb) fb.style.display = 'flex';
                 }
-            }, 4000);
+            }, 5000);
         }
         function closeInAppViewer() {
             const v = document.getElementById('inAppViewer');
