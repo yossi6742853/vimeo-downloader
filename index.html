@@ -32,10 +32,58 @@
         .tab-btn:hover{color:#666;background:rgba(108,92,231,0.05)}
         .tab-btn.active{color:var(--primary);border-bottom-color:var(--accent);font-weight:700}
         .status-box{background:linear-gradient(135deg,#f8f9ff,#f0f0ff);border-radius:14px;border-right:4px solid var(--primary)}
-        .video-result{border-radius:14px;transition:all .3s;border:1px solid #f0f0f0}
+        .video-result{border-radius:14px;transition:all .3s;border:1px solid #f0f0f0;cursor:pointer}
         .video-result:hover{background:#f8f9ff;transform:translateX(-4px);box-shadow:0 4px 20px rgba(0,0,0,0.06);border-color:var(--primary)}
-        .video-thumb{border-radius:10px;width:140px;height:80px;object-fit:cover}
-        .video-thumb-placeholder{border-radius:10px;width:140px;height:80px;background:linear-gradient(135deg,#f0f0f0,#e0e0e0);display:flex;align-items:center;justify-content:center}
+        /* List view (default) */
+        .video-thumb{border-radius:10px;width:320px;height:180px;object-fit:cover;flex-shrink:0;position:relative}
+        .video-thumb-placeholder{border-radius:10px;width:320px;height:180px;background:linear-gradient(135deg,#f0f0f0,#e0e0e0);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .video-duration-badge{position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,0.8);color:#fff;font-size:.7rem;padding:2px 6px;border-radius:4px;font-weight:700}
+        .video-title{font-size:1.05rem;font-weight:700;line-height:1.4;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .video-desc{font-size:.82rem;color:#888;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:6px}
+        .video-channel{font-size:.8rem;color:#777;font-weight:500}
+        .video-meta{font-size:.75rem;color:#999;margin-top:2px}
+        .video-meta span+span::before{content:'·';margin:0 6px}
+        /* Grid view */
+        .search-grid .video-result{flex-direction:column!important;padding:0!important;overflow:hidden}
+        .search-grid .video-thumb,.search-grid .video-thumb-placeholder{width:100%;height:180px;border-radius:14px 14px 0 0;margin:0!important}
+        .search-grid .video-info{padding:12px}
+        .search-grid .video-title{font-size:.92rem}
+        .search-grid .video-desc{display:none}
+        .search-grid .video-dl-btn{position:absolute;top:8px;left:8px}
+        .search-grid .video-result{position:relative}
+        /* Search results header */
+        .search-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #eee}
+        .search-stats{font-size:.85rem;color:#888}
+        .search-stats strong{color:var(--primary)}
+        .view-toggle .btn{padding:4px 10px;font-size:.85rem}
+        .view-toggle .btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+        /* Skeleton cards - YouTube style */
+        .skeleton-yt{display:flex;gap:14px;margin-bottom:16px;padding:12px}
+        .skeleton-yt .sk-thumb{width:320px;height:180px;border-radius:10px;flex-shrink:0}
+        .skeleton-yt .sk-body{flex:1;padding-top:8px}
+        .skeleton-yt .sk-title{height:18px;width:85%;margin-bottom:10px;border-radius:4px}
+        .skeleton-yt .sk-line{height:12px;margin-bottom:8px;border-radius:4px}
+        .skeleton-yt .sk-short{width:45%}
+        .skeleton-yt .sk-mid{width:65%}
+        /* No results state */
+        .no-results{text-align:center;padding:48px 20px}
+        .no-results i{font-size:4rem;color:#ddd;margin-bottom:16px}
+        .no-results h5{color:#666;margin-bottom:8px}
+        .no-results p{color:#999;font-size:.9rem}
+        .no-results .suggestion-chip{display:inline-block;padding:6px 14px;border-radius:20px;background:#f0f0ff;color:var(--primary);font-size:.82rem;margin:4px;cursor:pointer;transition:all .2s}
+        .no-results .suggestion-chip:hover{background:var(--primary);color:#fff}
+        /* Search history dropdown */
+        .search-history-dropdown{position:absolute;top:100%;right:0;left:0;background:#fff;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 14px 14px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,0.1);max-height:320px;overflow-y:auto;display:none}
+        .search-history-dropdown.show{display:block}
+        .search-history-dropdown .sh-item{padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .15s;border-bottom:1px solid #f5f5f5}
+        .search-history-dropdown .sh-item:hover{background:#f0f0ff}
+        .search-history-dropdown .sh-item:last-child{border-bottom:none}
+        .search-history-dropdown .sh-item i{color:#bbb;font-size:1rem}
+        .search-history-dropdown .sh-item .sh-text{flex:1;font-size:.9rem}
+        .search-history-dropdown .sh-item .sh-remove{color:#ccc;font-size:.8rem;padding:2px 6px;border-radius:4px}
+        .search-history-dropdown .sh-item .sh-remove:hover{color:#e74c3c;background:#fff0f0}
+        .search-history-dropdown .sh-header{padding:8px 16px;font-size:.75rem;color:#999;font-weight:700;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}
+        .search-input-wrap{position:relative}
         .history-item{border-radius:10px;transition:all .2s;border:1px solid transparent}
         .history-item:hover{background:#f8f9ff;border-color:#e0e0ff}
         .pin-input{letter-spacing:18px;font-size:2.5rem;text-align:center;font-weight:700;border:2px solid rgba(108,92,231,0.3)}
@@ -114,6 +162,21 @@
         body.dark .skeleton{background:linear-gradient(90deg,#2a2a4a 25%,#3a3a5a 50%,#2a2a4a 75%);background-size:200% 100%}
         body.dark .filter-pill{border-color:#4a4a6a;color:#aaa}
         body.dark .recent-search{background:#2a2a4a;color:#ccc}
+        body.dark .search-history-dropdown{background:#1e1e32;border-color:#3a3a5a}
+        body.dark .search-history-dropdown .sh-item{border-color:#2a2a4a}
+        body.dark .search-history-dropdown .sh-item:hover{background:rgba(108,92,231,0.15)}
+        body.dark .search-history-dropdown .sh-header{border-color:#3a3a5a;color:#777}
+        body.dark .search-header{border-color:#3a3a5a}
+        body.dark .search-stats{color:#888}
+        body.dark .video-title{color:#e0e0e0}
+        body.dark .video-desc{color:#999}
+        body.dark .video-channel{color:#aaa}
+        body.dark .no-results i{color:#4a4a6a}
+        body.dark .no-results h5{color:#bbb}
+        body.dark .no-results .suggestion-chip{background:#2a2a4a;color:#aaa}
+        body.dark .no-results .suggestion-chip:hover{background:var(--primary);color:#fff}
+        body.dark .view-toggle .btn{color:#aaa;border-color:#4a4a6a}
+        body.dark .view-toggle .btn.active{background:var(--primary);color:#fff}
         body.dark .btn-paste{background:#2a2a4a;border-color:#3a3a5a;color:#ccc}
         body.dark .drop-overlay{background:rgba(30,30,50,0.9)}
         body.dark #tab-settings [style*="background:#f8f9ff"]{background:#2a2a4a!important}
@@ -127,7 +190,9 @@
             .stats-number{font-size:1.3rem}
             .tab-btn{padding:10px 8px;font-size:.78rem}
             .tab-btn i{display:block;font-size:1.1rem;margin:0 0 2px 0!important}
-            .video-thumb,.video-thumb-placeholder{width:80px;height:50px}
+            .video-thumb,.video-thumb-placeholder{width:140px;height:80px}
+            .skeleton-yt .sk-thumb{width:140px;height:80px}
+            .search-grid .video-thumb,.search-grid .video-thumb-placeholder{height:140px}
             .main-card{border-radius:16px}
             .btn-download{font-size:.95rem;padding:12px}
             .site-badge{font-size:.7rem;padding:4px 8px}
@@ -256,21 +321,37 @@
                         </div>
 
                         <div id="tab-search" class="tab-pane p-4">
-                            <div class="input-group mb-2">
-                                <input type="text" id="searchInput" class="form-control" placeholder="חפש סרטונים ברשת..." onkeydown="if(event.key==='Enter')searchVideos()">
-                                <button class="btn btn-search text-white px-4" onclick="searchVideos()" data-bs-toggle="tooltip" title="חפש"><i class="bi bi-search"></i></button>
+                            <div class="search-input-wrap mb-2">
+                                <div class="input-group">
+                                    <input type="text" id="searchInput" class="form-control" placeholder="חפש סרטונים ברשת..." autocomplete="off"
+                                        onkeydown="if(event.key==='Enter'){searchVideos();hideSearchHistory()}"
+                                        onfocus="showSearchHistory()" oninput="showSearchHistory()">
+                                    <button class="btn btn-search text-white px-4" onclick="searchVideos();hideSearchHistory()" data-bs-toggle="tooltip" title="חפש"><i class="bi bi-search"></i></button>
+                                </div>
+                                <div class="search-history-dropdown" id="searchHistoryDropdown"></div>
                             </div>
                             <!-- Source filter pills -->
-                            <div class="d-flex gap-2 mb-2 flex-wrap">
-                                <span class="filter-pill active" data-source="all" onclick="setSearchFilter(this,'all')">הכל</span>
-                                <span class="filter-pill" data-source="Dailymotion" onclick="setSearchFilter(this,'Dailymotion')">Dailymotion</span>
-                                <span class="filter-pill" data-source="Vimeo" onclick="setSearchFilter(this,'Vimeo')">Vimeo</span>
-                                <span class="filter-pill" data-source="הידברות" onclick="setSearchFilter(this,'הידברות')">הידברות</span>
-                                <span class="filter-pill" data-source="Archive.org" onclick="setSearchFilter(this,'Archive.org')">Archive.org</span>
+                            <div class="d-flex gap-2 mb-2 flex-wrap" id="filterPillsBar">
+                                <span class="filter-pill active" data-source="all" onclick="setSearchFilter(this,'all')"><i class="bi bi-collection-play me-1"></i>הכל</span>
+                                <span class="filter-pill" data-source="YouTube" onclick="setSearchFilter(this,'YouTube')"><i class="bi bi-youtube me-1"></i>YouTube</span>
+                                <span class="filter-pill" data-source="Dailymotion" onclick="setSearchFilter(this,'Dailymotion')"><i class="bi bi-play-circle me-1"></i>Dailymotion</span>
+                                <span class="filter-pill" data-source="Vimeo" onclick="setSearchFilter(this,'Vimeo')"><i class="bi bi-vimeo me-1"></i>Vimeo</span>
+                                <span class="filter-pill" data-source="הידברות" onclick="setSearchFilter(this,'הידברות')"><i class="bi bi-book me-1"></i>הידברות</span>
+                                <span class="filter-pill" data-source="Archive.org" onclick="setSearchFilter(this,'Archive.org')"><i class="bi bi-archive me-1"></i>Archive.org</span>
                             </div>
-                            <!-- Recent searches -->
+                            <!-- Recent searches (inline chips) -->
                             <div id="recentSearches" class="mb-3 d-none"></div>
-                            <div id="searchResults"><div class="text-center py-5 text-muted"><i class="bi bi-search fs-1 d-block mb-2" style="opacity:0.3"></i>חפש סרטונים מ-Dailymotion, Vimeo, הידברות ו-Archive.org</div></div>
+                            <div id="searchResults"><div class="no-results">
+                                <i class="bi bi-search d-block"></i>
+                                <h5>חפש סרטונים מכל המקורות</h5>
+                                <p>Dailymotion, Vimeo, הידברות, Archive.org ועוד</p>
+                                <div class="mt-3">
+                                    <span class="suggestion-chip" onclick="document.getElementById('searchInput').value='שיעור תורה';searchVideos()">שיעור תורה</span>
+                                    <span class="suggestion-chip" onclick="document.getElementById('searchInput').value='הרב זמיר כהן';searchVideos()">הרב זמיר כהן</span>
+                                    <span class="suggestion-chip" onclick="document.getElementById('searchInput').value='פרשת השבוע';searchVideos()">פרשת השבוע</span>
+                                    <span class="suggestion-chip" onclick="document.getElementById('searchInput').value='מוזיקה';searchVideos()">מוזיקה</span>
+                                </div>
+                            </div></div>
                         </div>
 
                         <div id="tab-queue" class="tab-pane p-4">
@@ -860,14 +941,25 @@
             else showToast('אין פריטים שהושלמו', 'info');
         }
 
+        // === Search cache ===
+        const searchCache = {};
+
         // === Recent searches ===
         function getRecentSearches() { return JSON.parse(localStorage.getItem('recent_searches') || '[]'); }
         function addRecentSearch(query) {
             let searches = getRecentSearches();
             searches = searches.filter(s => s !== query);
             searches.unshift(query);
-            if (searches.length > 8) searches.pop();
+            if (searches.length > 12) searches.pop();
             localStorage.setItem('recent_searches', JSON.stringify(searches));
+        }
+        function removeRecentSearch(query, e) {
+            e.stopPropagation();
+            let searches = getRecentSearches();
+            searches = searches.filter(s => s !== query);
+            localStorage.setItem('recent_searches', JSON.stringify(searches));
+            showSearchHistory();
+            renderRecentSearches();
         }
         function renderRecentSearches() {
             const searches = getRecentSearches();
@@ -875,22 +967,60 @@
             if (!searches.length) { el.classList.add('d-none'); return; }
             el.classList.remove('d-none');
             el.innerHTML = '<small class="text-muted fw-bold"><i class="bi bi-clock me-1"></i>חיפושים אחרונים:</small> ' +
-                searches.map(s => `<span class="recent-search" onclick="document.getElementById('searchInput').value='${s}';searchVideos()">${s}</span>`).join('');
+                searches.slice(0, 6).map(s => `<span class="recent-search" onclick="document.getElementById('searchInput').value='${s}';searchVideos()">${s}</span>`).join('');
         }
 
+        // === Search history dropdown ===
+        function showSearchHistory() {
+            const searches = getRecentSearches();
+            const dd = document.getElementById('searchHistoryDropdown');
+            const input = document.getElementById('searchInput').value.trim().toLowerCase();
+            const filtered = input ? searches.filter(s => s.toLowerCase().includes(input)) : searches;
+            if (!filtered.length) { dd.classList.remove('show'); return; }
+            dd.innerHTML = `<div class="sh-header"><span><i class="bi bi-clock-history me-1"></i>חיפושים אחרונים</span><span class="sh-remove" onclick="clearRecentSearches();event.stopPropagation()">נקה הכל</span></div>` +
+                filtered.map(s => `<div class="sh-item" onclick="document.getElementById('searchInput').value='${s}';hideSearchHistory();searchVideos()">
+                    <i class="bi bi-clock-history"></i>
+                    <span class="sh-text">${s}</span>
+                    <span class="sh-remove" onclick="removeRecentSearch('${s}',event)"><i class="bi bi-x"></i></span>
+                </div>`).join('');
+            dd.classList.add('show');
+        }
+        function hideSearchHistory() {
+            setTimeout(() => document.getElementById('searchHistoryDropdown').classList.remove('show'), 150);
+        }
+        // Close dropdown on outside click
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.search-input-wrap')) hideSearchHistory();
+        });
+
         // === Search filter ===
+        let searchViewMode = 'list';
         function setSearchFilter(el, source) {
             document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
             el.classList.add('active');
             currentSearchFilter = source;
-            // Re-filter existing results
             if (lastSearchResults.length) {
                 const filtered = source === 'all' ? lastSearchResults : lastSearchResults.filter(v => v.source === source);
                 displayResults(filtered, document.getElementById('searchInput').value);
             }
         }
+        function toggleSearchView(mode) {
+            searchViewMode = mode;
+            document.querySelectorAll('.view-toggle .btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.view-toggle .btn[data-view="${mode}"]`).classList.add('active');
+            const container = document.getElementById('searchResultsList');
+            if (container) {
+                container.classList.toggle('search-grid', mode === 'grid');
+                container.classList.toggle('row', mode === 'grid');
+                container.classList.toggle('g-3', mode === 'grid');
+                document.querySelectorAll('.video-result-col').forEach(col => {
+                    col.className = mode === 'grid' ? 'video-result-col col-sm-6 col-md-4' : 'video-result-col col-12';
+                });
+            }
+        }
 
-        // === Search - Fast mode (GitHub Actions) + Deep mode ===
+        // === Search - with cache + YouTube-style skeleton ===
+        let searchStartTime = 0;
         async function searchVideos() {
             const query = document.getElementById('searchInput').value.trim();
             if (!query) return;
@@ -905,17 +1035,23 @@
 
             addRecentSearch(query);
             renderRecentSearches();
+            searchStartTime = performance.now();
 
             const results = document.getElementById('searchResults');
-            // Skeleton loading animation
-            results.innerHTML = `<div class="py-3">
-                <div class="d-flex align-items-center mb-3"><div class="spinner-border spinner-border-sm text-primary me-2"></div><span class="fw-bold">מחפש ב-Dailymotion, Vimeo, הידברות, Archive.org...</span></div>
-                <div class="skeleton skeleton-card"></div>
-                <div class="skeleton skeleton-card"></div>
-                <div class="skeleton skeleton-card"></div>
-                <div class="skeleton skeleton-card" style="width:85%"></div>
-                <div class="skeleton skeleton-card" style="width:70%"></div>
-            </div>`;
+
+            // Show cached results immediately if available
+            const cacheKey = query.toLowerCase().trim();
+            if (searchCache[cacheKey]) {
+                const cached = searchCache[cacheKey];
+                lastSearchResults = cached;
+                const filtered = currentSearchFilter === 'all' ? cached : cached.filter(v => v.source === currentSearchFilter);
+                displayResults(filtered, query, true);
+            }
+
+            // Show YouTube-style skeleton loading
+            if (!searchCache[cacheKey]) {
+                results.innerHTML = buildSkeletonHTML();
+            }
 
             // Trigger GitHub Actions search
             fetch(`https://api.github.com/repos/${REPO}/actions/workflows/search.yml/dispatches`, {
@@ -927,9 +1063,9 @@
             // Poll for completed workflow
             for (let i = 0; i < 24; i++) {
                 await new Promise(r => setTimeout(r, 5000));
-                // Update skeleton with timer
-                const skeletonTimer = results.querySelector('.fw-bold');
-                if (skeletonTimer) skeletonTimer.textContent = `מחפש... (${(i+1)*5} שניות)`;
+                const elapsed = Math.round((performance.now() - searchStartTime) / 1000);
+                const skeletonTimer = results.querySelector('.search-timer');
+                if (skeletonTimer) skeletonTimer.textContent = `${elapsed} שניות`;
                 try {
                     const runsResp = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/search.yml/runs?per_page=1`, {
                         headers: { 'Authorization': `token ${GH_TOKEN}` }
@@ -945,32 +1081,119 @@
                             if (data.query === query || data.query?.includes(query.split(' ')[0])) {
                                 const safe = data.results.filter(v => !_CF.check(v.title) && !_CF.checkUrl(v.url));
                                 lastSearchResults = safe;
+                                searchCache[cacheKey] = safe;
                                 const filtered = currentSearchFilter === 'all' ? safe : safe.filter(v => v.source === currentSearchFilter);
-                                displayResults(filtered, query);
+                                displayResults(filtered, query, false);
                                 return;
                             }
                         }
                     }
                 } catch(e) {}
             }
-            results.innerHTML = '<p class="text-warning text-center">החיפוש לקח יותר מדי זמן. נסה שוב.</p>';
-        }
-
-        function displayResults(videos, query) {
-            const el = document.getElementById('searchResults');
-            if (!videos?.length) { el.innerHTML = `<p class="text-muted text-center py-4">לא נמצאו תוצאות עבור "${query}"</p>`; return; }
-            let html = `<div class="mb-3 text-muted">${videos.length} תוצאות עבור "<strong>${query}</strong>"</div>`;
-            for (const v of videos) {
-                const mins = Math.floor((v.duration||0)/60);
-                const badge = {'YouTube':'bg-danger','Dailymotion':'bg-info','Vimeo':'bg-primary','הידברות':'bg-success','Archive.org':'bg-warning text-dark'}[v.source]||'bg-secondary';
-                const thumb = v.thumb ? `<img src="${v.thumb}" class="video-thumb me-3" onerror="this.outerHTML='<div class=\\'video-thumb-placeholder me-3\\'><i class=\\'bi bi-film fs-4 text-muted\\'></i></div>'">` : '<div class="video-thumb-placeholder me-3"><i class="bi bi-film fs-4 text-muted"></i></div>';
-                html += `<div class="video-result p-3 mb-2 d-flex align-items-center">
-                    ${thumb}
-                    <div class="flex-grow-1"><div class="fw-bold mb-1">${v.title}</div>
-                    ${mins>0?`<small class="text-muted"><i class="bi bi-clock me-1"></i>${mins} דק'</small>`:''}<span class="badge ${badge} badge-source ms-2">${v.source}</span></div>
-                    <button class="btn btn-sm btn-download text-white px-3" onclick="startDownload('${v.url}')" data-bs-toggle="tooltip" title="הורד לדרייב"><i class="bi bi-download"></i></button>
+            if (!searchCache[cacheKey]) {
+                results.innerHTML = `<div class="no-results">
+                    <i class="bi bi-hourglass-split d-block"></i>
+                    <h5>החיפוש לקח יותר מדי זמן</h5>
+                    <p>נסה שוב או חפש מונח אחר</p>
+                    <button class="btn btn-download text-white mt-2" onclick="searchVideos()"><i class="bi bi-arrow-repeat me-1"></i>נסה שוב</button>
                 </div>`;
             }
+        }
+
+        function buildSkeletonHTML() {
+            let html = `<div class="py-2">
+                <div class="d-flex align-items-center mb-3 p-2" style="background:#f0f0ff;border-radius:10px">
+                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                    <span class="fw-bold" style="font-size:.9rem">מחפש ב-Dailymotion, Vimeo, הידברות, Archive.org...</span>
+                    <span class="search-timer text-muted me-auto" style="font-size:.8rem"></span>
+                </div>`;
+            for (let i = 0; i < 5; i++) {
+                html += `<div class="skeleton-yt">
+                    <div class="sk-thumb skeleton"></div>
+                    <div class="sk-body">
+                        <div class="sk-title skeleton"></div>
+                        <div class="sk-line sk-mid skeleton"></div>
+                        <div class="sk-line sk-short skeleton"></div>
+                    </div>
+                </div>`;
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds || seconds <= 0) return '';
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            return `${m}:${String(s).padStart(2,'0')}`;
+        }
+
+        function displayResults(videos, query, fromCache) {
+            const el = document.getElementById('searchResults');
+            const elapsed = ((performance.now() - searchStartTime) / 1000).toFixed(2);
+
+            if (!videos?.length) {
+                el.innerHTML = `<div class="no-results">
+                    <i class="bi bi-search d-block"></i>
+                    <h5>לא נמצאו תוצאות עבור "${query}"</h5>
+                    <p>נסה לחפש מונח אחר או לשנות את הפילטר</p>
+                    <div class="mt-3">
+                        <span class="suggestion-chip" onclick="document.getElementById('searchInput').value='${query} שיעור';searchVideos()">${query} שיעור</span>
+                        <span class="suggestion-chip" onclick="document.getElementById('searchInput').value='${query} הרצאה';searchVideos()">${query} הרצאה</span>
+                        <span class="suggestion-chip" onclick="setSearchFilter(document.querySelector('.filter-pill[data-source=all]'),'all')">הצג את כל המקורות</span>
+                    </div>
+                </div>`;
+                return;
+            }
+
+            const badgeColors = {'YouTube':'bg-danger','Dailymotion':'bg-info','Vimeo':'bg-primary','הידברות':'bg-success','Archive.org':'bg-warning text-dark'};
+            const sourceIcons = {'YouTube':'bi-youtube','Dailymotion':'bi-play-circle','Vimeo':'bi-vimeo','הידברות':'bi-book','Archive.org':'bi-archive'};
+            const isGrid = searchViewMode === 'grid';
+            const cacheLabel = fromCache ? ' <span class="badge bg-secondary" style="font-size:.65rem">מהמטמון</span>' : '';
+
+            let html = `<div class="search-header">
+                <div class="search-stats">${videos.length} תוצאות עבור "<strong>${query}</strong>" <span class="text-muted">(${elapsed} שניות)</span>${cacheLabel}</div>
+                <div class="view-toggle btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary ${searchViewMode==='list'?'active':''}" data-view="list" onclick="toggleSearchView('list')" title="תצוגת רשימה"><i class="bi bi-list-ul"></i></button>
+                    <button class="btn btn-outline-secondary ${searchViewMode==='grid'?'active':''}" data-view="grid" onclick="toggleSearchView('grid')" title="תצוגת כרטיסים"><i class="bi bi-grid-3x3-gap"></i></button>
+                </div>
+            </div>`;
+            html += `<div id="searchResultsList" class="${isGrid ? 'search-grid row g-3' : ''}">`;
+            for (const v of videos) {
+                const dur = formatDuration(v.duration);
+                const badge = badgeColors[v.source] || 'bg-secondary';
+                const srcIcon = sourceIcons[v.source] || 'bi-globe';
+                const colClass = isGrid ? 'col-sm-6 col-md-4' : 'col-12';
+                const desc = v.description ? v.description.substring(0, 120) : '';
+                const uploadDate = v.date ? new Date(v.date).toLocaleDateString('he-IL', {year:'numeric',month:'short',day:'numeric'}) : '';
+
+                const thumbInner = dur ? `<span class="video-duration-badge">${dur}</span>` : '';
+                const thumb = v.thumb
+                    ? `<div style="position:relative;flex-shrink:0"><img src="${v.thumb}" class="video-thumb me-3" onerror="this.parentElement.outerHTML='<div class=\\'video-thumb-placeholder me-3\\'><i class=\\'bi bi-film fs-3 text-muted\\'></i></div>'">${thumbInner}</div>`
+                    : `<div class="video-thumb-placeholder me-3"><i class="bi bi-film fs-3 text-muted"></i></div>`;
+
+                html += `<div class="video-result-col ${colClass}">
+                    <div class="video-result p-3 mb-2 d-flex align-items-start">
+                        ${thumb}
+                        <div class="video-info flex-grow-1">
+                            <div class="video-title">${v.title}</div>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <span class="badge ${badge} badge-source"><i class="bi ${srcIcon} me-1"></i>${v.source}</span>
+                            </div>
+                            ${desc ? `<div class="video-desc">${desc}</div>` : ''}
+                            <div class="video-meta">
+                                ${v.channel ? `<span><i class="bi bi-person me-1"></i>${v.channel}</span>` : ''}
+                                ${uploadDate ? `<span><i class="bi bi-calendar3 me-1"></i>${uploadDate}</span>` : ''}
+                                ${v.duration > 0 ? `<span><i class="bi bi-clock me-1"></i>${Math.ceil(v.duration/60)} דק'</span>` : ''}
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-download text-white px-3 video-dl-btn" onclick="event.stopPropagation();startDownload('${v.url}')" data-bs-toggle="tooltip" title="הורד לדרייב"><i class="bi bi-download"></i></button>
+                    </div>
+                </div>`;
+            }
+            html += '</div>';
             el.innerHTML = html;
             initTooltips();
         }
