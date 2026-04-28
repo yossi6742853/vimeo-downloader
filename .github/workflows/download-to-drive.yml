@@ -56,32 +56,7 @@ jobs:
           # If no files from yt-dlp, try extracting video from page with Playwright
           if [ -z "$(ls -A videos/ 2>/dev/null)" ]; then
             echo "yt-dlp failed, trying Playwright to find videos in page..."
-            python3 -c "
-import re, os
-from playwright.sync_api import sync_playwright
-
-url = '$URL'
-with sync_playwright() as p:
-    browser = p.chromium.launch(headless=True)
-    page = browser.new_page()
-    video_urls = []
-    def on_response(response):
-        ct = response.headers.get('content-type','')
-        if any(x in ct for x in ['video/','audio/']) or any(x in response.url for x in ['.mp4','.webm','.m3u8','videoplayback']):
-            video_urls.append(response.url)
-    page.on('response', on_response)
-    page.goto(url, wait_until='domcontentloaded', timeout=30000)
-    page.wait_for_timeout(5000)
-    browser.close()
-
-if video_urls:
-    print(f'Found {len(video_urls)} media URLs')
-    import subprocess
-    best = max(video_urls, key=len)
-    subprocess.run(['curl','-L','-o','videos/extracted_video.mp4',best,'--max-time','300'], timeout=310)
-else:
-    print('No media found in page')
-" 2>&1 || true
+            python3 playwright_extract.py "$URL" 2>&1 || true
           fi
 
           # If still no files, try direct download (images, docs, presentations, etc)
