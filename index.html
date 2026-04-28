@@ -999,7 +999,7 @@
             try {
                 // Wait for the workflow's commit to land in last_downloads.json
                 let entry = null;
-                for (let attempt = 0; attempt < 20; attempt++) {
+                for (let attempt = 0; attempt < 30; attempt++) {
                     try {
                         const r = await fetch(`https://raw.githubusercontent.com/${REPO}/master/docs/last_downloads.json?_=${Date.now()}`);
                         if (r.ok) {
@@ -1011,27 +1011,65 @@
                     await new Promise(r => setTimeout(r, 3000));
                 }
                 if (!entry) {
-                    showToast('לא נמצא הקובץ בדרייב להורדה למחשב', 'warning');
+                    showToast('הקובץ עלה לדרייב, אך לא נמצא ל-PC. נסה רענון', 'warning');
                     return;
                 }
-                showToast('מתחיל הורדה למחשב: ' + entry.name, 'info');
                 const directUrl = `https://drive.usercontent.google.com/download?id=${entry.id}&export=download&confirm=t`;
-                // Open in hidden iframe → triggers browser save dialog
-                const a = document.createElement('a');
-                a.href = directUrl;
-                a.download = entry.name;
-                a.target = '_blank';
-                a.rel = 'noopener';
-                document.body.appendChild(a);
-                a.click();
-                setTimeout(() => a.remove(), 500);
+                qItem.driveFileId = entry.id;
+                qItem.directUrl = directUrl;
+                qItem.fileName = entry.name;
+                saveQueue();
+
+                // Try fetch+blob first (works without popup, when CORS allows)
+                let downloaded = false;
+                try {
+                    const resp = await fetch(directUrl);
+                    if (resp.ok) {
+                        const blob = await resp.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = blobUrl;
+                        a.download = entry.name;
+                        document.body.appendChild(a);
+                        a.click();
+                        setTimeout(() => { a.remove(); URL.revokeObjectURL(blobUrl); }, 2000);
+                        downloaded = true;
+                    }
+                } catch(e) { /* CORS or network - fall back */ }
+
+                if (!downloaded) {
+                    // Fallback: open in new tab; browser handles Content-Disposition: attachment
+                    const win = window.open(directUrl, '_blank', 'noopener,noreferrer');
+                    if (!win || win.closed) {
+                        showToast('הדפדפן חסם חלון קופץ — לחץ "הורד למחשב" בתור', 'warning');
+                        sendNotification('VideoGrab', 'הקובץ מוכן! לחץ בתור להורדה למחשב');
+                        return;
+                    }
+                }
+                showToast('הורדה למחשב התחילה: ' + entry.name, 'success');
                 qItem.pcDownloaded = true;
                 saveQueue();
-                sendNotification('VideoGrab', 'מתחיל הורדה למחשב: ' + entry.name);
+                sendNotification('VideoGrab', 'הורדה למחשב: ' + entry.name);
             } catch(e) {
                 console.error('PC download failed:', e);
-                showToast('שגיאה בהורדה למחשב', 'error');
+                showToast('שגיאה בהורדה למחשב — נסה כפתור ידני', 'error');
             }
+        }
+
+        // Manual PC download trigger (user-initiated → no popup block)
+        function manualPcDownload(idx) {
+            const q = queue[idx];
+            if (!q || !q.directUrl) { showToast('אין URL זמין', 'error'); return; }
+            const a = document.createElement('a');
+            a.href = q.directUrl;
+            a.download = q.fileName || 'download.mp4';
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => a.remove(), 500);
+            q.pcDownloaded = true;
+            saveQueue();
+            showToast('הורדה התחילה: ' + (q.fileName || ''), 'success');
         }
 
         function startMultiDownload() {
@@ -1082,7 +1120,7 @@
                         </div>
                     </div>
                     ${q.status === 'downloading' ? `<div class="progress" style="height:4px;border-radius:2px"><div class="progress-bar progress-bar-animated" style="width:${pct}%"></div></div>` : ''}
-                    ${q.status === 'done' ? '<small class="text-success"><i class="bi bi-check me-1"></i>הקובץ בדרייב</small>' : ''}
+                    ${q.status === 'done' ? `<small class="text-success"><i class="bi bi-check me-1"></i>הקובץ בדרייב${q.directUrl ? ` <button class="btn btn-sm btn-outline-primary ms-2" onclick="manualPcDownload(${i})"><i class="bi bi-pc-display me-1"></i>${q.pcDownloaded ? 'הורד שוב למחשב' : 'הורד למחשב'}</button>` : ''}</small>` : ''}
                 </div>`;
             }).join('');
         }
@@ -1799,7 +1837,8 @@
         }
 
         // === Google Web Search ===
-        const GOOGLE_API = 'https://script.google.com/macros/s/AKfycbx6P8RJi1PCYl_fAnblzQ4wCm2KwkORszbOyVQgVGnjjuPX0QS1n1tCNSdh38jBWayXtQ/exec';
+        const GOOGLE_API = 'https://script.google.com/macros/s/AKfycbx6P8RJi1PCYl_fAnblzQ4wCm2KwkORszbOyVQgVGnjjuPX0QS1n1tCNSdh38jBWayXtQ/exec'; // legacy proxy (broken)
+        const GOOGLE_RESULTS_URL = `https://raw.githubusercontent.com/${REPO}/master/docs/google_results.json`;
         let googleSearchFilter = 'web';
         let lastGoogleResults = [];
         let googleSearchTime = 0;
@@ -1842,26 +1881,44 @@
                 showToast(_CF.msg, 'warning');
                 return;
             }
+            if (!GH_TOKEN) { new bootstrap.Modal(document.getElementById('setupModal')).show(); return; }
 
             googleSearchTime = performance.now();
             const el = document.getElementById('googleResults');
-            el.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">מחפש בגוגל...</p></div>';
+            el.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">מחפש בגוגל...</p><p class="small text-muted">~15 שניות בפעם הראשונה</p></div>';
 
+            // Trigger Google Search workflow
             try {
-                const resp = await fetch(`${GOOGLE_API}?q=${encodeURIComponent(query)}&type=web`);
-                if (resp.ok) {
-                    const data = await resp.json();
-                    const results = (data.results || []).filter(r => !_CF.check(r.title) && !_CF.checkUrl(r.url || r.link));
+                const dispatchResp = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/google-search.yml/dispatches`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' },
+                    body: JSON.stringify({ ref: 'master', inputs: { query: query, type: googleSearchFilter || 'web' } })
+                });
+                if (dispatchResp.status !== 204) {
+                    el.innerHTML = '<div class="text-center py-4 text-danger"><i class="bi bi-exclamation-circle fs-2 d-block mb-2"></i><p>שגיאה בהפעלת חיפוש: ' + dispatchResp.status + '</p></div>';
+                    return;
+                }
+            } catch(e) {
+                el.innerHTML = '<div class="text-center py-4 text-danger"><i class="bi bi-wifi-off fs-2 d-block mb-2"></i><p>שגיאת רשת.</p></div>';
+                return;
+            }
+
+            // Poll for results
+            for (let i = 0; i < 20; i++) {
+                await new Promise(r => setTimeout(r, 3000));
+                try {
+                    const r = await fetch(`${GOOGLE_RESULTS_URL}?_=${Date.now()}`);
+                    if (!r.ok) continue;
+                    const data = await r.json();
+                    if (data.query !== query) continue;
+                    const results = (data.results || []).filter(r => !_CF.check(r.title) && !_CF.checkUrl(r.url || r.link) && !_CF.check(r.snippet || ''));
                     lastGoogleResults = results;
                     const filtered = filterGoogleResults(results);
                     displayGoogleResults(filtered, query);
-                } else {
-                    el.innerHTML = '<div class="text-center py-4 text-danger"><i class="bi bi-exclamation-circle fs-2 d-block mb-2"></i><p>שגיאה בחיפוש. נסה שוב.</p></div>';
-                }
-            } catch(e) {
-                console.error('Google search error:', e);
-                el.innerHTML = '<div class="text-center py-4 text-danger"><i class="bi bi-wifi-off fs-2 d-block mb-2"></i><p>שגיאת רשת. בדוק את החיבור ונסה שוב.</p></div>';
+                    return;
+                } catch(e) {}
             }
+            el.innerHTML = '<div class="text-center py-4 text-warning"><i class="bi bi-clock fs-2 d-block mb-2"></i><p>החיפוש לוקח יותר מהצפוי. נסה שוב בעוד רגע.</p><button class="btn btn-sm btn-outline-primary mt-2" onclick="googleSearch()">נסה שוב</button></div>';
         }
 
         function displayGoogleResults(results, query) {

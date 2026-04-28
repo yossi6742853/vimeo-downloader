@@ -1,0 +1,46 @@
+name: Google Search
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Search query'
+        required: true
+      type:
+        description: 'web/image/video/doc/presentation'
+        required: false
+        default: 'web'
+
+permissions:
+  contents: write
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install
+        run: pip install requests beautifulsoup4
+
+      - name: Run Google search
+        run: |
+          python3 google_search.py "${{ github.event.inputs.query }}" "${{ github.event.inputs.type }}"
+
+      - name: Commit results
+        if: always()
+        run: |
+          set +e
+          git config user.name "VideoGrab Bot"
+          git config user.email "bot@videograb.local"
+          git add docs/google_results.json
+          if ! git diff --staged --quiet; then
+            git commit -m "Google search: ${{ github.event.inputs.query }}"
+            for i in 1 2 3; do
+              git pull --rebase origin master
+              git push && break
+              sleep 2
+            done
+          else
+            echo "Nothing to commit"
+          fi
