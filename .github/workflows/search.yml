@@ -15,139 +15,122 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Search video sites
-        run: |
-          pip install requests 2>/dev/null
-          python3 -c "
-          import requests, json, os, re
 
-          query = '${{ github.event.inputs.query }}'
+      - name: Setup WARP
+        uses: fscarmen/warp-on-actions@v1.1
+        with:
+          stack: dual
+
+      - name: Search all sources
+        run: |
+          pip install requests yt-dlp 2>/dev/null
+          python3 << 'PYEOF'
+          import requests, json, os, re, subprocess
+
+          query = "${{ github.event.inputs.query }}"
           results = []
 
-          # 1. YouTube Search (via Piped or Invidious)
-          print('Searching YouTube...')
-          for inst in ['pipedapi.kavin.rocks', 'pipedapi.adminforge.de']:
-              try:
-                  api_url = 'https://' + inst + '/search'
-              r = requests.get(api_url, params={'q': query, 'filter': 'videos'}, timeout=10)
-                  if r.status_code == 200:
-                      data = r.json()
-                      items = data.get('items', data) if isinstance(data, dict) else data
-                      for v in (items[:15] if isinstance(items, list) else []):
-                          vid_url = v.get('url', '')
-                          if vid_url and not vid_url.startswith('http'):
-                              vid_url = f'https://www.youtube.com{vid_url}'
-                          results.append({
-                              'title': v.get('title', ''),
-                              'url': vid_url,
-                              'thumb': v.get('thumbnail', ''),
-                              'duration': v.get('duration', 0),
-                              'source': 'YouTube'
-                          })
-                      if results: break
-              except Exception as e:
-                  print(f'  {inst}: {e}')
-
-          # If Piped failed, try Invidious
-          if not any(r['source'] == 'YouTube' for r in results):
-              for inst in ['inv.nadeko.net', 'invidious.nerdvpn.de', 'invidious.protokolla.fi']:
+          # 1. YouTube via yt-dlp (with WARP)
+          print("Searching YouTube...")
+          try:
+              r = subprocess.run([
+                  "yt-dlp", "--flat-playlist", "--dump-json",
+                  "--extractor-args", "youtube:player_client=android",
+                  "--playlist-end", "15",
+                  "ytsearch15:" + query
+              ], capture_output=True, text=True, timeout=30, encoding="utf-8", errors="ignore")
+              for line in r.stdout.strip().split("\n"):
+                  if not line.strip(): continue
                   try:
-                      api_url = 'https://' + inst + '/api/v1/search'
-                      r = requests.get(api_url, params={'q': query, 'type': 'video'}, timeout=10)
-                      if r.status_code == 200:
-                          for v in r.json()[:15]:
-                              results.append({
-                                  'title': v.get('title', ''),
-                                  'url': f'https://www.youtube.com/watch?v={v.get(\"videoId\",\"\")}',
-                                  'thumb': (v.get('videoThumbnails', [{}])[0].get('url', '') if v.get('videoThumbnails') else ''),
-                                  'duration': v.get('lengthSeconds', 0),
-                                  'source': 'YouTube'
-                              })
-                          if results: break
-                  except Exception as e:
-                      print(f'  {inst}: {e}')
+                      v = json.loads(line)
+                      vid_id = v.get("id", "")
+                      thumbs = v.get("thumbnails", [])
+                      thumb = thumbs[-1]["url"] if thumbs else ""
+                      results.append({
+                          "title": v.get("title", ""),
+                          "url": "https://www.youtube.com/watch?v=" + vid_id,
+                          "thumb": thumb,
+                          "duration": v.get("duration", 0),
+                          "source": "YouTube"
+                      })
+                  except: pass
+              print(f"  YouTube: {len([r for r in results if r['source']=='YouTube'])} results")
+          except Exception as e:
+              print(f"  YouTube error: {e}")
 
           # 2. Dailymotion
-          print('Searching Dailymotion...')
+          print("Searching Dailymotion...")
           try:
-              r = requests.get('https://api.dailymotion.com/videos', params={
-                  'search': query, 'fields': 'id,title,thumbnail_240_url,duration,url',
-                  'limit': 10, 'sort': 'relevance'
+              r = requests.get("https://api.dailymotion.com/videos", params={
+                  "search": query, "fields": "id,title,thumbnail_240_url,duration,url",
+                  "limit": 10, "sort": "relevance"
               }, timeout=10)
               if r.status_code == 200:
-                  for v in r.json().get('list', []):
+                  for v in r.json().get("list", []):
                       results.append({
-                          'title': v.get('title',''),
-                          'url': v.get('url',''),
-                          'thumb': v.get('thumbnail_240_url',''),
-                          'duration': v.get('duration',0),
-                          'source': 'Dailymotion'
+                          "title": v.get("title",""), "url": v.get("url",""),
+                          "thumb": v.get("thumbnail_240_url",""),
+                          "duration": v.get("duration",0), "source": "Dailymotion"
                       })
           except: pass
 
           # 3. Archive.org
-          print('Searching Archive.org...')
+          print("Searching Archive.org...")
           try:
-              r = requests.get('https://archive.org/advancedsearch.php', params={
-                  'q': query + ' mediatype:movies',
-                  'fl[]': 'identifier,title,description',
-                  'rows': 10, 'output': 'json'
+              r = requests.get("https://archive.org/advancedsearch.php", params={
+                  "q": query + " mediatype:movies", "fl[]": "identifier,title",
+                  "rows": 10, "output": "json"
               }, timeout=10)
               if r.status_code == 200:
-                  for doc in r.json().get('response',{}).get('docs',[]):
+                  for doc in r.json().get("response",{}).get("docs",[]):
+                      ident = doc.get("identifier","")
                       results.append({
-                          'title': doc.get('title',''),
-                          'url': f\"https://archive.org/details/{doc.get('identifier','')}\",
-                          'thumb': f\"https://archive.org/services/img/{doc.get('identifier','')}\",
-                          'duration': 0,
-                          'source': 'Archive.org'
+                          "title": doc.get("title",""),
+                          "url": "https://archive.org/details/" + ident,
+                          "thumb": "https://archive.org/services/img/" + ident,
+                          "duration": 0, "source": "Archive.org"
                       })
           except: pass
 
           # 4. Vimeo
-          print('Searching Vimeo...')
+          print("Searching Vimeo...")
           try:
-              r = requests.get(f'https://api.vimeo.com/videos?query={query}&per_page=10&sort=relevant',
-                  headers={'Authorization': 'Bearer unauthenticated', 'Accept': 'application/vnd.vimeo.*+json;version=3.4'},
+              r = requests.get("https://api.vimeo.com/videos", params={"query": query, "per_page": 10, "sort": "relevant"},
+                  headers={"Authorization": "Bearer unauthenticated", "Accept": "application/vnd.vimeo.*+json;version=3.4"},
                   timeout=10)
               if r.status_code == 200:
-                  for v in r.json().get('data', []):
-                      pics = v.get('pictures',{}).get('sizes',[])
-                      thumb = pics[2]['link'] if len(pics) > 2 else ''
+                  for v in r.json().get("data", []):
+                      pics = v.get("pictures",{}).get("sizes",[])
                       results.append({
-                          'title': v.get('name',''),
-                          'url': v.get('link',''),
-                          'thumb': thumb,
-                          'duration': v.get('duration',0),
-                          'source': 'Vimeo'
+                          "title": v.get("name",""), "url": v.get("link",""),
+                          "thumb": pics[2]["link"] if len(pics) > 2 else "",
+                          "duration": v.get("duration",0), "source": "Vimeo"
                       })
           except: pass
 
           # 5. Hidabroot
-          print('Searching Hidabroot...')
+          print("Searching Hidabroot...")
           try:
-              r = requests.get(f'https://www.hidabroot.org/search', params={'q': query},
-                  headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+              r = requests.get("https://www.hidabroot.org/search", params={"q": query},
+                  headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
               if r.status_code == 200:
-                  links = re.findall(r'href=\"(/video/\d+)\"[^>]*>([^<]+)', r.text)
+                  links = re.findall(r'href="(/video/\d+)"[^>]*>([^<]+)', r.text)
                   seen = set()
                   for link, title in links[:10]:
                       if link not in seen:
                           seen.add(link)
                           results.append({
-                              'title': title.strip(),
-                              'url': f'https://www.hidabroot.org{link}',
-                              'thumb': '',
-                              'duration': 0,
-                              'source': 'הידברות'
+                              "title": title.strip(),
+                              "url": "https://www.hidabroot.org" + link,
+                              "thumb": "", "duration": 0, "source": "הידברות"
                           })
           except: pass
 
-          print(f'Total: {len(results)} results')
-          os.makedirs('docs', exist_ok=True)
-          with open('docs/search_results.json', 'w', encoding='utf-8') as f:
-              json.dump({'query': query, 'results': results}, f, ensure_ascii=False)
-          "
+          print(f"Total: {len(results)} results")
+          os.makedirs("docs", exist_ok=True)
+          with open("docs/search_results.json", "w", encoding="utf-8") as f:
+              json.dump({"query": query, "results": results}, f, ensure_ascii=False)
+          PYEOF
 
       - name: Publish results
         run: |
