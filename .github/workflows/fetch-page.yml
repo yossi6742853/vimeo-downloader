@@ -87,16 +87,22 @@ jobs:
           def download_asset(asset_url, max_size_mb=20):
               try:
                   asset_count[0] += 1
-                  if asset_count[0] > 50: return None
-                  asset_url = urllib.parse.urljoin(url, asset_url)
-                  ar = requests.get(asset_url, headers={**headers, "Referer": url}, timeout=15, stream=True)
-                  if ar.status_code != 200: return None
+                  if asset_count[0] > 50:
+                      print(f"  skip(limit): {asset_url[:80]}")
+                      return None
+                  full_url = urllib.parse.urljoin(url, asset_url)
+                  ar = requests.get(full_url, headers={**headers, "Referer": url}, timeout=15, stream=True)
+                  if ar.status_code != 200:
+                      print(f"  fail({ar.status_code}): {full_url[:80]}")
+                      return None
                   cl = int(ar.headers.get("Content-Length", "0"))
-                  if cl > max_size_mb * 1024 * 1024: return None
+                  if cl > max_size_mb * 1024 * 1024:
+                      print(f"  skip(size {cl}): {full_url[:80]}")
+                      return None
                   ct = ar.headers.get("Content-Type","").split(";")[0]
-                  ext = mimetypes.guess_extension(ct) or os.path.splitext(urllib.parse.urlparse(asset_url).path)[1] or ".bin"
+                  ext = mimetypes.guess_extension(ct) or os.path.splitext(urllib.parse.urlparse(full_url).path)[1] or ".bin"
                   if ext == ".jpe": ext = ".jpg"
-                  ahash = hashlib.sha1(asset_url.encode()).hexdigest()[:12]
+                  ahash = hashlib.sha1(full_url.encode()).hexdigest()[:12]
                   fname = f"{ahash}{ext}"
                   fpath = os.path.join(asset_dir, fname)
                   total = 0
@@ -105,8 +111,10 @@ jobs:
                           total += len(chunk)
                           if total > max_size_mb * 1024 * 1024: break
                           f.write(chunk)
+                  print(f"  ok({total}): {full_url[:80]}")
                   return f"{base_for_assets}/{fname}"
               except Exception as e:
+                  print(f"  exc({type(e).__name__}: {e}): {asset_url[:80]}")
                   return None
 
           # Images
