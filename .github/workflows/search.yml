@@ -19,16 +19,58 @@ jobs:
         run: |
           pip install requests 2>/dev/null
           python3 -c "
-          import requests, json, os
+          import requests, json, os, re
 
           query = '${{ github.event.inputs.query }}'
           results = []
 
-          # 1. Dailymotion
+          # 1. YouTube Search (via Piped or Invidious)
+          print('Searching YouTube...')
+          for inst in ['pipedapi.kavin.rocks', 'pipedapi.adminforge.de']:
+              try:
+                  r = requests.get(f'https://{inst}/search', params={'q': query, 'filter': 'videos'}, timeout=10)
+                  if r.status_code == 200:
+                      data = r.json()
+                      items = data.get('items', data) if isinstance(data, dict) else data
+                      for v in (items[:15] if isinstance(items, list) else []):
+                          vid_url = v.get('url', '')
+                          if vid_url and not vid_url.startswith('http'):
+                              vid_url = f'https://www.youtube.com{vid_url}'
+                          results.append({
+                              'title': v.get('title', ''),
+                              'url': vid_url,
+                              'thumb': v.get('thumbnail', ''),
+                              'duration': v.get('duration', 0),
+                              'source': 'YouTube'
+                          })
+                      if results: break
+              except Exception as e:
+                  print(f'  {inst}: {e}')
+
+          # If Piped failed, try Invidious
+          if not any(r['source'] == 'YouTube' for r in results):
+              for inst in ['inv.nadeko.net', 'invidious.nerdvpn.de', 'invidious.protokolla.fi']:
+                  try:
+                      r = requests.get(f'https://{inst}/api/v1/search', params={'q': query, 'type': 'video'}, timeout=10)
+                      if r.status_code == 200:
+                          for v in r.json()[:15]:
+                              results.append({
+                                  'title': v.get('title', ''),
+                                  'url': f'https://www.youtube.com/watch?v={v.get(\"videoId\",\"\")}',
+                                  'thumb': (v.get('videoThumbnails', [{}])[0].get('url', '') if v.get('videoThumbnails') else ''),
+                                  'duration': v.get('lengthSeconds', 0),
+                                  'source': 'YouTube'
+                              })
+                          if results: break
+                  except Exception as e:
+                      print(f'  {inst}: {e}')
+
+          # 2. Dailymotion
+          print('Searching Dailymotion...')
           try:
               r = requests.get('https://api.dailymotion.com/videos', params={
                   'search': query, 'fields': 'id,title,thumbnail_240_url,duration,url',
-                  'limit': 15, 'sort': 'relevance'
+                  'limit': 10, 'sort': 'relevance'
               }, timeout=10)
               if r.status_code == 200:
                   for v in r.json().get('list', []):
@@ -41,7 +83,8 @@ jobs:
                       })
           except: pass
 
-          # 2. Archive.org
+          # 3. Archive.org
+          print('Searching Archive.org...')
           try:
               r = requests.get('https://archive.org/advancedsearch.php', params={
                   'q': query + ' mediatype:movies',
@@ -59,7 +102,8 @@ jobs:
                       })
           except: pass
 
-          # 3. Vimeo
+          # 4. Vimeo
+          print('Searching Vimeo...')
           try:
               r = requests.get(f'https://api.vimeo.com/videos?query={query}&per_page=10&sort=relevant',
                   headers={'Authorization': 'Bearer unauthenticated', 'Accept': 'application/vnd.vimeo.*+json;version=3.4'},
@@ -77,12 +121,12 @@ jobs:
                       })
           except: pass
 
-          # 4. Hidabroot (scrape search page)
+          # 5. Hidabroot
+          print('Searching Hidabroot...')
           try:
               r = requests.get(f'https://www.hidabroot.org/search', params={'q': query},
                   headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
               if r.status_code == 200:
-                  import re
                   links = re.findall(r'href=\"(/video/\d+)\"[^>]*>([^<]+)', r.text)
                   seen = set()
                   for link, title in links[:10]:
@@ -97,16 +141,16 @@ jobs:
                           })
           except: pass
 
-          print(f'Found {len(results)} results')
-          with open('search_results.json', 'w', encoding='utf-8') as f:
+          print(f'Total: {len(results)} results')
+          os.makedirs('docs', exist_ok=True)
+          with open('docs/search_results.json', 'w', encoding='utf-8') as f:
               json.dump({'query': query, 'results': results}, f, ensure_ascii=False)
           "
 
-      - name: Publish results to repo
+      - name: Publish results
         run: |
           git config user.email "bot@github.com"
           git config user.name "Search Bot"
-          cp search_results.json docs/search_results.json 2>/dev/null || mkdir -p docs && cp search_results.json docs/
           git add docs/search_results.json
-          git commit -m "Search results: ${{ github.event.inputs.query }}" || true
+          git commit -m "Search: ${{ github.event.inputs.query }}" || true
           git push || true

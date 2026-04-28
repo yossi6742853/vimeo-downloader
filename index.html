@@ -878,7 +878,7 @@
             let html = `<div class="mb-3 text-muted">${videos.length} תוצאות עבור "<strong>${query}</strong>"</div>`;
             for (const v of videos) {
                 const mins = Math.floor((v.duration||0)/60);
-                const badge = {'Dailymotion':'bg-info','Vimeo':'bg-primary','הידברות':'bg-success','Archive.org':'bg-warning text-dark'}[v.source]||'bg-secondary';
+                const badge = {'YouTube':'bg-danger','Dailymotion':'bg-info','Vimeo':'bg-primary','הידברות':'bg-success','Archive.org':'bg-warning text-dark'}[v.source]||'bg-secondary';
                 const thumb = v.thumb ? `<img src="${v.thumb}" class="video-thumb me-3" onerror="this.outerHTML='<div class=\\'video-thumb-placeholder me-3\\'><i class=\\'bi bi-film fs-4 text-muted\\'></i></div>'">` : '<div class="video-thumb-placeholder me-3"><i class="bi bi-film fs-4 text-muted"></i></div>';
                 html += `<div class="video-result p-3 mb-2 d-flex align-items-center">
                     ${thumb}
