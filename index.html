@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VideoGrab v6.0 - הורדת קבצים לדרייב</title>
+    <title>VideoGrab v6.1 - הורדת קבצים לדרייב + מחשב</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#6c5ce7">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
@@ -341,12 +341,21 @@
                                 <div class="col-6">
                                     <label class="form-label small fw-bold"><i class="bi bi-sliders me-1"></i>איכות</label>
                                     <select id="qualitySelect" class="form-select" style="border-radius:12px">
-                                        <option value="best">הכי טובה</option>
+                                        <option value="best">מלאה (הכי גבוהה)</option>
+                                        <option value="2160">2160p (4K)</option>
+                                        <option value="1440">1440p (2K)</option>
+                                        <option value="1080">1080p (Full HD)</option>
                                         <option value="720" selected>720p (מומלץ)</option>
                                         <option value="480">480p (קל)</option>
                                         <option value="360">360p (קטן)</option>
                                     </select>
                                 </div>
+                            </div>
+                            <div class="form-check mb-2 d-flex align-items-center" style="padding-right:1.5em">
+                                <input class="form-check-input ms-2" type="checkbox" id="downloadToPcCheck" style="margin-right:0;margin-left:.5rem">
+                                <label class="form-check-label small fw-bold" for="downloadToPcCheck" style="cursor:pointer">
+                                    <i class="bi bi-pc-display me-1"></i>הורד גם למחשב (אוטומטית)
+                                </label>
                             </div>
                             <button class="btn btn-download text-white w-100" onclick="startDownload(document.getElementById('urlInput').value)" data-bs-toggle="tooltip" title="הורד את הקובץ לדרייב">
                                 <i class="bi bi-cloud-arrow-down me-2"></i>הורד לדרייב
@@ -521,7 +530,10 @@
                                     <div class="col-6">
                                         <label class="form-label small">איכות ברירת מחדל</label>
                                         <select id="settDefaultQuality" class="form-select form-select-sm" onchange="saveSettings()">
-                                            <option value="best">הכי טובה</option>
+                                            <option value="best">מלאה (הכי גבוהה)</option>
+                                            <option value="2160">2160p (4K)</option>
+                                            <option value="1440">1440p (2K)</option>
+                                            <option value="1080">1080p</option>
                                             <option value="720">720p</option>
                                             <option value="480">480p</option>
                                             <option value="360">360p</option>
@@ -906,11 +918,13 @@
             try {
                 const format = overrideFormat || document.getElementById('formatSelect')?.value || 'video';
                 const quality = overrideQuality || document.getElementById('qualitySelect')?.value || '720';
-                const inputs = { url };
+                const dlToPc = document.getElementById('downloadToPcCheck')?.checked ? 'true' : 'false';
+                const inputs = { url, quality, download_to_pc: dlToPc };
                 if (workflow === 'download-to-drive.yml') {
                     inputs.format = format;
-                    inputs.quality = quality;
                 }
+                qItem.downloadToPc = dlToPc === 'true';
+                qItem.quality = quality;
                 const resp = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`, {
                     method: 'POST',
                     headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' },
@@ -920,7 +934,7 @@
                     qItem.status = 'downloading';
                     qItem.progress = 10;
                     saveQueue();
-                    showToast('ההורדה התחילה!', 'success');
+                    showToast(dlToPc === 'true' ? 'ההורדה התחילה (יורד גם למחשב)' : 'ההורדה התחילה!', 'success');
                     addHistory(url, qItem.type);
                     trackProgress(qItem);
                 } else {
@@ -959,6 +973,7 @@
                             showToast('הקובץ הועלה לדרייב!', 'success');
                             playBeep();
                             sendNotification('VideoGrab', 'הקובץ הועלה לדרייב בהצלחה!');
+                            if (qItem.downloadToPc) await triggerPcDownload(qItem);
                             return;
                         } else if (run.conclusion === 'failure') {
                             qItem.status = 'error';
@@ -972,6 +987,46 @@
             }
             qItem.status = 'done'; qItem.progress = 100; saveQueue();
             playBeep();
+        }
+
+        // === Trigger PC download from Drive (uses public link set by workflow) ===
+        async function triggerPcDownload(qItem) {
+            try {
+                // Wait for the workflow's commit to land in last_downloads.json
+                let entry = null;
+                for (let attempt = 0; attempt < 20; attempt++) {
+                    try {
+                        const r = await fetch(`https://raw.githubusercontent.com/${REPO}/master/docs/last_downloads.json?_=${Date.now()}`);
+                        if (r.ok) {
+                            const list = await r.json();
+                            entry = list.find(e => e.url === qItem.url && e.downloadToPc && (Date.now() - e.time) < 30 * 60 * 1000);
+                            if (entry) break;
+                        }
+                    } catch(e) {}
+                    await new Promise(r => setTimeout(r, 3000));
+                }
+                if (!entry) {
+                    showToast('לא נמצא הקובץ בדרייב להורדה למחשב', 'warning');
+                    return;
+                }
+                showToast('מתחיל הורדה למחשב: ' + entry.name, 'info');
+                const directUrl = `https://drive.usercontent.google.com/download?id=${entry.id}&export=download&confirm=t`;
+                // Open in hidden iframe → triggers browser save dialog
+                const a = document.createElement('a');
+                a.href = directUrl;
+                a.download = entry.name;
+                a.target = '_blank';
+                a.rel = 'noopener';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => a.remove(), 500);
+                qItem.pcDownloaded = true;
+                saveQueue();
+                sendNotification('VideoGrab', 'מתחיל הורדה למחשב: ' + entry.name);
+            } catch(e) {
+                console.error('PC download failed:', e);
+                showToast('שגיאה בהורדה למחשב', 'error');
+            }
         }
 
         function startMultiDownload() {
@@ -1382,7 +1437,8 @@
                         <div class="d-flex flex-column align-items-end gap-1 video-dl-btn" style="min-width:110px">
                             <div class="d-flex gap-1 w-100">
                                 <select class="form-select form-select-sm" id="sq_${videos.indexOf(v)}" style="font-size:.7rem;padding:2px 4px;border-radius:6px;width:auto">
-                                    <option value="best">best</option>
+                                    <option value="best">מלא</option>
+                                    <option value="1080">1080p</option>
                                     <option value="720" selected>720p</option>
                                     <option value="480">480p</option>
                                     <option value="360">360p</option>

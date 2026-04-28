@@ -10,18 +10,27 @@ on:
         required: false
         default: 'video'
       quality:
-        description: '360/480/720/best'
+        description: '360/480/720/1080/1440/2160/best'
         required: false
         default: '720'
+      download_to_pc:
+        description: 'true/false - also expose for PC download'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
 
 jobs:
   download:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      - uses: actions/checkout@v4
+
       - name: Install tools
         run: |
-          pip install -U yt-dlp playwright
+          pip install -U yt-dlp playwright requests
           playwright install chromium
           curl -fsSL https://deno.land/install.sh | sh
           echo "$HOME/.deno/bin" >> $GITHUB_PATH
@@ -36,10 +45,9 @@ jobs:
           QUALITY="${{ github.event.inputs.quality }}"
 
           if [ "$FORMAT" = "audio" ]; then
-            # Audio only - extract as MP3
             yt-dlp --no-overwrites -x --audio-format mp3 -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
           elif [ "$QUALITY" = "best" ]; then
-            yt-dlp --no-overwrites --merge-output-format mp4 -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+            yt-dlp --no-overwrites --merge-output-format mp4 -f "bv*+ba/b" -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
           else
             yt-dlp --no-overwrites --merge-output-format mp4 -f "bv*[height<=${QUALITY}]+ba/b[height<=${QUALITY}]" -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
           fi
@@ -79,7 +87,6 @@ else:
           if [ -z "$(ls -A videos/ 2>/dev/null)" ]; then
             echo "Trying direct download..."
             FILENAME=$(basename "$URL" | head -c 200)
-            # Clean filename
             FILENAME=$(echo "$FILENAME" | sed 's/[?#].*//')
             [ -z "$FILENAME" ] && FILENAME="download"
             curl -L -o "videos/$FILENAME" "$URL" --max-time 300 -H "User-Agent: Mozilla/5.0" 2>&1 || true
@@ -88,22 +95,24 @@ else:
           echo "=== Files ==="
           ls -lh videos/ || echo "No files"
 
-      - name: Upload to Google Drive
+      - name: Upload to Drive + record
+        if: always()
         env:
           CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          DOWNLOAD_TO_PC: ${{ github.event.inputs.download_to_pc }}
+          SOURCE_URL: ${{ github.event.inputs.url }}
         run: |
           python3 << 'PYEOF'
-          import requests, json, os, glob
+          import requests, json, os, glob, mimetypes, time
 
-          token_resp = requests.post("https://oauth2.googleapis.com/token", data={
+          token = requests.post("https://oauth2.googleapis.com/token", data={
               "client_id": os.environ["CLIENT_ID"],
               "client_secret": os.environ["CLIENT_SECRET"],
               "refresh_token": os.environ["REFRESH_TOKEN"],
               "grant_type": "refresh_token"
-          })
-          token = token_resp.json()["access_token"]
+          }).json()["access_token"]
           headers = {"Authorization": f"Bearer {token}"}
 
           r = requests.get("https://www.googleapis.com/drive/v3/files",
@@ -114,6 +123,10 @@ else:
               headers={**headers, "Content-Type": "application/json"},
               json={"name": "סרטונים שהורדו", "mimeType": "application/vnd.google-apps.folder"}).json()["id"]
 
+          to_pc = os.environ.get("DOWNLOAD_TO_PC", "false").lower() == "true"
+          source_url = os.environ.get("SOURCE_URL", "")
+          uploaded = []
+
           for fpath in glob.glob("videos/*"):
               fname = os.path.basename(fpath)
               size = os.path.getsize(fpath)
@@ -121,15 +134,63 @@ else:
                   print(f"Skipping tiny file: {fname} ({size} bytes)")
                   continue
               print(f"Uploading: {fname} ({size/1024/1024:.1f} MB)")
-              r = requests.post("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable",
+              mime = mimetypes.guess_type(fname)[0] or "application/octet-stream"
+              r = requests.post("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,size,mimeType",
                   headers={**headers, "Content-Type": "application/json"},
                   json={"name": fname, "parents": [folder_id]})
-              if r.status_code == 200:
-                  import mimetypes
-                  mime = mimetypes.guess_type(fname)[0] or "application/octet-stream"
-                  with open(fpath, "rb") as f:
-                      r2 = requests.put(r.headers["Location"], data=f, headers={"Content-Type": mime})
-                  print(f"{'SUCCESS' if r2.status_code==200 else 'FAILED'}: {r2.status_code}")
-              else:
+              if r.status_code != 200:
                   print(f"Init failed: {r.status_code}")
+                  continue
+              with open(fpath, "rb") as f:
+                  r2 = requests.put(r.headers["Location"], data=f, headers={"Content-Type": mime})
+              if r2.status_code != 200:
+                  print(f"Upload FAILED: {r2.status_code}")
+                  continue
+              info = r2.json()
+              fid = info.get("id")
+              print(f"SUCCESS: id={fid}")
+              # Make public when needed for PC download
+              if to_pc and fid:
+                  pr = requests.post(f"https://www.googleapis.com/drive/v3/files/{fid}/permissions",
+                      headers={**headers, "Content-Type": "application/json"},
+                      json={"role": "reader", "type": "anyone"})
+                  print(f"Permission: {pr.status_code}")
+              uploaded.append({
+                  "id": fid,
+                  "name": fname,
+                  "size": size,
+                  "mimeType": mime,
+                  "url": source_url,
+                  "downloadToPc": to_pc,
+                  "time": int(time.time() * 1000)
+              })
+
+          # Append to docs/last_downloads.json
+          os.makedirs("docs", exist_ok=True)
+          path = "docs/last_downloads.json"
+          history = []
+          if os.path.exists(path):
+              try:
+                  with open(path, encoding="utf-8") as f:
+                      history = json.load(f)
+              except: history = []
+          history = uploaded + (history if isinstance(history, list) else [])
+          history = history[:50]
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(history, f, ensure_ascii=False, indent=1)
+          print(f"Recorded {len(uploaded)} downloads")
           PYEOF
+
+      - name: Commit record
+        if: always()
+        run: |
+          git config user.name "VideoGrab Bot"
+          git config user.email "bot@videograb.local"
+          git add docs/last_downloads.json 2>/dev/null || true
+          if ! git diff --staged --quiet; then
+            for i in 1 2 3; do
+              git pull --rebase origin master 2>/dev/null || true
+              git push 2>/dev/null && break
+              sleep 2
+            done
+          fi
