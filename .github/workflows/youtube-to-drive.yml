@@ -52,19 +52,28 @@ jobs:
             FMT="bv*[height<=${QUALITY}]+ba/b[height<=${QUALITY}]"
           fi
 
-          # Try multiple methods in order
-          # Method 1: Android client (best for bypassing bot detection)
-          echo "=== Method 1: Android client ==="
+          # Try multiple methods in order — prioritize HIGH-QUALITY clients first
+          # Method 1: Default (web+tv clients — best formats up to 4K)
+          echo "=== Method 1: Default (high quality) ==="
           yt-dlp \
-            --extractor-args "youtube:player_client=android" \
             --no-overwrites \
             --merge-output-format mp4 \
             -f "$FMT" \
             -o "videos/%(title)s.%(ext)s" \
             "$URL" 2>&1 && echo "SUCCESS" && exit 0 || true
 
-          # Method 2: iOS client
-          echo "=== Method 2: iOS client ==="
+          # Method 2: TV client (high quality, often bypasses bot detection)
+          echo "=== Method 2: TV client ==="
+          yt-dlp \
+            --extractor-args "youtube:player_client=tv" \
+            --no-overwrites \
+            --merge-output-format mp4 \
+            -f "$FMT" \
+            -o "videos/%(title)s.%(ext)s" \
+            "$URL" 2>&1 && echo "SUCCESS" && exit 0 || true
+
+          # Method 3: iOS client (medium quality)
+          echo "=== Method 3: iOS client ==="
           yt-dlp \
             --extractor-args "youtube:player_client=ios" \
             --no-overwrites \
@@ -73,17 +82,10 @@ jobs:
             -o "videos/%(title)s.%(ext)s" \
             "$URL" 2>&1 && echo "SUCCESS" && exit 0 || true
 
-          # Method 3: TV client
-          echo "=== Method 3: TV client ==="
+          # Method 4: Android (last resort — limited to 720p typically)
+          echo "=== Method 4: Android (fallback) ==="
           yt-dlp \
-            --extractor-args "youtube:player_client=tv" \
-            --no-overwrites \
-            -o "videos/%(title)s.%(ext)s" \
-            "$URL" 2>&1 && echo "SUCCESS" && exit 0 || true
-
-          # Method 4: Default with WARP IP
-          echo "=== Method 4: Default ==="
-          yt-dlp \
+            --extractor-args "youtube:player_client=android" \
             --no-overwrites \
             -o "videos/%(title)s.%(ext)s" \
             "$URL" 2>&1 || true
