@@ -906,10 +906,11 @@
             if (!GH_TOKEN) { new bootstrap.Modal(document.getElementById('setupModal')).show(); return; }
 
             const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
-            const workflow = isYouTube ? 'youtube-to-drive.yml' : 'download-to-drive.yml';
+            const isGemini = url.includes('gemini.google.com/share/');
+            const workflow = isGemini ? 'gemini-to-drive.yml' : (isYouTube ? 'youtube-to-drive.yml' : 'download-to-drive.yml');
             const ft = detectFileType(url);
 
-            const qItem = { url, status: 'pending', progress: 0, time: new Date().toLocaleString('he-IL'), type: isYouTube ? 'YouTube' : getDomain(url), fileType: ft.type };
+            const qItem = { url, status: 'pending', progress: 0, time: new Date().toLocaleString('he-IL'), type: isGemini ? 'Gemini (Veo)' : (isYouTube ? 'YouTube' : getDomain(url)), fileType: ft.type };
             queue.unshift(qItem);
             saveQueue();
             updateStats();
@@ -919,10 +920,14 @@
                 const format = overrideFormat || document.getElementById('formatSelect')?.value || 'video';
                 const quality = overrideQuality || document.getElementById('qualitySelect')?.value || '720';
                 const dlToPc = document.getElementById('downloadToPcCheck')?.checked ? 'true' : 'false';
-                const inputs = { url, quality, download_to_pc: dlToPc };
+                const inputs = { url, download_to_pc: dlToPc };
                 if (workflow === 'download-to-drive.yml') {
                     inputs.format = format;
+                    inputs.quality = quality;
+                } else if (workflow === 'youtube-to-drive.yml') {
+                    inputs.quality = quality;
                 }
+                // gemini-to-drive only takes url + download_to_pc (Veo videos have fixed quality)
                 qItem.downloadToPc = dlToPc === 'true';
                 qItem.quality = quality;
                 const resp = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`, {
