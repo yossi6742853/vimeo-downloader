@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>VideoGrab v7.5 - הורדת קבצים לדרייב + מחשב</title>
+    <title>VideoGrab v6.6 - הורדת קבצים לדרייב + מחשב</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#6c5ce7">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
@@ -194,38 +194,6 @@
         body.dark .drop-overlay{background:rgba(30,30,50,0.9)}
         body.dark #tab-settings [style*="background:#f8f9ff"]{background:#2a2a4a!important}
         body.dark #tab-settings [style*="background:#fff5f5"]{background:#3a2020!important;border-color:#5a3030!important}
-
-        /* Google Search tab styles */
-        .google-search-bar{background:#fff;border-radius:24px;border:1px solid #dfe1e5;padding:6px 16px;display:flex;align-items:center;max-width:620px;margin:0 auto 16px;transition:box-shadow .2s}
-        .google-search-bar:hover,.google-search-bar:focus-within{box-shadow:0 1px 6px rgba(32,33,36,.28);border-color:rgba(223,225,229,0)}
-        .google-search-bar input{border:none;outline:none;flex:1;font-size:1rem;padding:8px;background:transparent;color:#202124}
-        .google-search-bar .bi{color:#9aa0a6;font-size:1.2rem}
-        .google-result{padding:16px 0;border-bottom:1px solid #ebebeb}
-        .google-result:last-child{border-bottom:none}
-        .google-result .gr-url{font-size:.82rem;color:#202124;margin-bottom:2px;display:flex;align-items:center;gap:6px}
-        .google-result .gr-url img{width:18px;height:18px;border-radius:50%}
-        .google-result .gr-url span{color:#4d5156;font-size:.78rem;direction:ltr;display:inline-block}
-        .google-result .gr-title{font-size:1.15rem;color:#1a0dab;cursor:pointer;text-decoration:none;font-weight:400;line-height:1.3;margin-bottom:2px;display:block}
-        .google-result .gr-title:hover{text-decoration:underline}
-        .google-result .gr-snippet{font-size:.88rem;color:#4d5156;line-height:1.58}
-        .google-result .gr-snippet em,.google-result .gr-snippet b{font-weight:700;color:#5f6368}
-        .google-filter-tabs{display:flex;gap:0;border-bottom:1px solid #ebebeb;margin-bottom:16px;max-width:620px;margin-left:auto;margin-right:auto}
-        .google-filter-tab{padding:8px 16px;font-size:.85rem;color:#5f6368;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap}
-        .google-filter-tab:hover{color:#1a73e8}
-        .google-filter-tab.active{color:#1a73e8;border-bottom-color:#1a73e8;font-weight:600}
-        .google-results-container{max-width:620px;margin:0 auto}
-        .google-result .gr-actions{margin-top:6px}
-        body.dark .google-search-bar{background:#303134;border-color:#5f6368}
-        body.dark .google-search-bar input{color:#e8eaed}
-        body.dark .google-search-bar .bi{color:#9aa0a6}
-        body.dark .google-result{border-color:#3c4043}
-        body.dark .google-result .gr-title{color:#8ab4f8}
-        body.dark .google-result .gr-snippet{color:#bdc1c6}
-        body.dark .google-result .gr-url span{color:#bdc1c6}
-        body.dark .google-result .gr-url{color:#e8eaed}
-        body.dark .google-filter-tab{color:#9aa0a6}
-        body.dark .google-filter-tab:hover,.dark .google-filter-tab.active{color:#8ab4f8;border-bottom-color:#8ab4f8}
-
         /* Mobile responsive improvements */
         @media(max-width:576px){
             .logo-icon{font-size:2.8rem}
@@ -278,7 +246,7 @@
                 <div class="col-lg-9">
                     <div class="text-center mb-4" style="position:relative;z-index:1">
                         <div class="logo-icon"><i class="bi bi-cloud-arrow-down-fill"></i></div>
-                        <div class="logo-title">VideoGrab <span class="version-badge">v7.5</span></div>
+                        <div class="logo-title">VideoGrab <span class="version-badge">v6.6</span></div>
                         <p class="logo-sub">הורד סרטונים, מצגות, תמונות ומסמכים מכל אתר — ישירות ל-Google Drive</p>
                         <div class="mt-2">
                             <span class="site-badge"><i class="bi bi-film me-1"></i>סרטונים</span>
@@ -307,7 +275,6 @@
                         <div class="d-flex border-bottom flex-wrap">
                             <button class="tab-btn active flex-fill" onclick="switchTab('download')" id="tabBtnDownload" data-bs-toggle="tooltip" title="Ctrl+D"><i class="bi bi-download me-1"></i>הורדה</button>
                             <button class="tab-btn flex-fill" onclick="switchTab('search')" id="tabBtnSearch" data-bs-toggle="tooltip" title="Ctrl+K"><i class="bi bi-search me-1"></i>חיפוש</button>
-                            <button class="tab-btn flex-fill" onclick="switchTab('google')" id="tabBtnGoogle"><i class="bi bi-globe2 me-1"></i>חיפוש בגוגל</button>
                             <button class="tab-btn flex-fill" onclick="switchTab('queue')" id="tabBtnQueue" data-bs-toggle="tooltip" title="Ctrl+Q"><i class="bi bi-list-check me-1"></i>תור<span class="badge bg-danger rounded-pill ms-1 d-none" id="queueBadge">0</span></button>
                             <button class="tab-btn flex-fill" onclick="switchTab('favorites')" id="tabBtnFavorites"><i class="bi bi-star me-1"></i>מועדפים</button>
                             <button class="tab-btn flex-fill" onclick="switchTab('drive')" id="tabBtnDrive"><i class="bi bi-folder me-1"></i>דרייב</button>
@@ -447,33 +414,6 @@
                             </div></div>
                         </div>
 
-                        <!-- Tab: Google Search -->
-                        <div id="tab-google" class="tab-pane p-4">
-                            <div class="text-center mb-3">
-                                <svg viewBox="0 0 272 92" style="height:36px;margin-bottom:8px"><path d="M115.75 47.18c0 12.77-9.99 22.18-22.25 22.18s-22.25-9.41-22.25-22.18C71.25 34.32 81.24 25 93.5 25s22.25 9.32 22.25 22.18zm-9.74 0c0-7.98-5.79-13.44-12.51-13.44S80.99 39.2 80.99 47.18c0 7.9 5.79 13.44 12.51 13.44s12.51-5.55 12.51-13.44z" fill="#EA4335"/><path d="M163.75 47.18c0 12.77-9.99 22.18-22.25 22.18s-22.25-9.41-22.25-22.18c0-12.85 9.99-22.18 22.25-22.18s22.25 9.32 22.25 22.18zm-9.74 0c0-7.98-5.79-13.44-12.51-13.44s-12.51 5.46-12.51 13.44c0 7.9 5.79 13.44 12.51 13.44s12.51-5.55 12.51-13.44z" fill="#FBBC05"/><path d="M209.75 26.34v39.82c0 16.38-9.66 23.07-21.08 23.07-10.75 0-17.22-7.19-19.66-13.07l8.48-3.53c1.51 3.61 5.21 7.87 11.17 7.87 7.31 0 11.84-4.51 11.84-13v-3.19h-.34c-2.18 2.69-6.38 5.04-11.68 5.04-11.09 0-21.25-9.66-21.25-22.09 0-12.52 10.16-22.26 21.25-22.26 5.29 0 9.49 2.35 11.68 4.96h.34v-3.61h9.25zm-8.56 20.92c0-7.81-5.21-13.52-11.84-13.52-6.72 0-12.35 5.71-12.35 13.52 0 7.73 5.63 13.36 12.35 13.36 6.63 0 11.84-5.63 11.84-13.36z" fill="#4285F4"/><path d="M225 3v65h-9.5V3h9.5z" fill="#34A853"/><path d="M262.02 54.48l7.56 5.04c-2.44 3.61-8.32 9.83-18.48 9.83-12.6 0-22.01-9.74-22.01-22.18 0-13.19 9.49-22.18 20.92-22.18 11.51 0 17.14 9.16 18.98 14.11l1.01 2.52-29.65 12.28c2.27 4.45 5.8 6.72 10.75 6.72 4.96 0 8.4-2.44 10.92-6.14zm-23.27-7.98l19.82-8.23c-1.09-2.77-4.37-4.7-8.23-4.7-4.95 0-11.84 4.37-11.59 12.93z" fill="#EA4335"/><path d="M35.29 41.19V32H67c.31 1.64.47 3.58.47 5.68 0 7.06-1.93 15.79-8.15 22.01-6.05 6.3-13.78 9.66-24.02 9.66C16.32 69.35.36 53.89.36 34.91.36 15.93 16.32.47 35.3.47c10.5 0 17.98 4.12 23.6 9.49l-6.64 6.64c-4.03-3.78-9.49-6.72-16.97-6.72-13.86 0-24.7 11.17-24.7 25.03 0 13.86 10.84 25.03 24.7 25.03 8.99 0 14.11-3.61 17.39-6.89 2.66-2.66 4.41-6.46 5.1-11.65l-22.49-.01z" fill="#4285F4"/></svg>
-                            </div>
-                            <div class="google-search-bar">
-                                <i class="bi bi-search"></i>
-                                <input type="text" id="googleSearchInput" placeholder="חפש בגוגל..." autocomplete="off"
-                                    onkeydown="if(event.key==='Enter')googleSearch()">
-                                <button class="btn btn-sm" onclick="googleSearch()" style="border:none;background:none"><i class="bi bi-search text-primary"></i></button>
-                            </div>
-                            <div class="google-filter-tabs" id="googleFilterTabs">
-                                <span class="google-filter-tab active" data-gtype="web" onclick="setGoogleFilter(this,'web')"><i class="bi bi-globe me-1"></i>הכל</span>
-                                <span class="google-filter-tab" data-gtype="image" onclick="setGoogleFilter(this,'image')"><i class="bi bi-image me-1"></i>תמונות</span>
-                                <span class="google-filter-tab" data-gtype="video" onclick="setGoogleFilter(this,'video')"><i class="bi bi-film me-1"></i>סרטונים</span>
-                                <span class="google-filter-tab" data-gtype="doc" onclick="setGoogleFilter(this,'doc')"><i class="bi bi-file-earmark-text me-1"></i>מסמכים</span>
-                                <span class="google-filter-tab" data-gtype="presentation" onclick="setGoogleFilter(this,'presentation')"><i class="bi bi-file-earmark-slides me-1"></i>מצגות</span>
-                            </div>
-                            <div id="googleResults" class="google-results-container">
-                                <div class="text-center py-5 text-muted">
-                                    <i class="bi bi-globe2 fs-1 d-block mb-2" style="opacity:0.3"></i>
-                                    <h6>חפש בגוגל</h6>
-                                    <p class="small">חפש דפי אינטרנט, מסמכים, מצגות ועוד</p>
-                                </div>
-                            </div>
-                        </div>
-
                         <div id="tab-queue" class="tab-pane p-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h6 class="mb-0 fw-bold"><i class="bi bi-list-check me-1"></i>תור הורדות</h6>
@@ -557,13 +497,6 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="form-check mt-3" style="padding-right:1.5em">
-                                    <input class="form-check-input ms-2" type="checkbox" id="settAlwaysDirectPc" onchange="saveSettings()" style="margin-right:0;margin-left:.5rem">
-                                    <label class="form-check-label small fw-bold text-success" for="settAlwaysDirectPc" style="cursor:pointer">
-                                        <i class="bi bi-lightning-charge me-1"></i>תמיד הורדה ישירה למחשב (גם מחיפוש)
-                                    </label>
-                                    <div class="small text-muted ms-4 mt-1">דורש שהסקריפט המקומי videograb_pc_watcher.py ירוץ ברקע</div>
-                                </div>
                             </div>
 
                             <!-- Dark mode toggle -->
@@ -604,7 +537,7 @@
 
                             <!-- Version info -->
                             <div class="text-center text-muted small mt-3">
-                                <i class="bi bi-info-circle me-1"></i>גרסה <strong>v7.5</strong> | VideoGrab
+                                <i class="bi bi-info-circle me-1"></i>גרסה <strong>v6.6</strong> | VideoGrab
                             </div>
                         </div>
                     </div>
@@ -625,7 +558,7 @@
                     </div>
 
                     <div class="text-center small" style="position:relative;z-index:1">
-                        <p class="text-white-50"><i class="bi bi-shield-check me-1"></i>מסנן תוכן פעיל | <i class="bi bi-folder2 me-1"></i>קבצים מגיעים ל"סרטונים שהורדו" בדרייב | <span class="version-badge">v7.5</span></p>
+                        <p class="text-white-50"><i class="bi bi-shield-check me-1"></i>מסנן תוכן פעיל | <i class="bi bi-folder2 me-1"></i>קבצים מגיעים ל"סרטונים שהורדו" בדרייב | <span class="version-badge">v6.6</span></p>
                         <div class="d-flex justify-content-center gap-2 flex-wrap">
                             <button class="btn btn-sm text-white-50" onclick="toggleDark()" id="darkBtn" data-bs-toggle="tooltip" title="החלף מצב תצוגה"><i class="bi bi-moon me-1"></i>מצב כהה</button>
                             <button class="btn btn-sm text-white-50" onclick="installPWA()" id="installBtn" style="display:none" data-bs-toggle="tooltip" title="התקן כאפליקציה"><i class="bi bi-download me-1"></i>התקן כאפליקציה</button>
@@ -938,11 +871,9 @@
             if (!GH_TOKEN) { new bootstrap.Modal(document.getElementById('setupModal')).show(); return; }
 
             // === Direct-to-PC mode: bypass Drive entirely ===
-            // Triggered by: form checkbox OR global setting "תמיד הורדה ישירה למחשב"
-            const settings = JSON.parse(localStorage.getItem('vg_settings') || '{}');
-            const directPc = document.getElementById('directPcCheck')?.checked || settings.alwaysDirectPc === true;
+            const directPc = document.getElementById('directPcCheck')?.checked;
             if (directPc) {
-                const quality = overrideQuality || document.getElementById('qualitySelect')?.value || settings.defaultQuality || 'best';
+                const quality = overrideQuality || document.getElementById('qualitySelect')?.value || 'best';
                 await addToPcQueue(url, quality);
                 return;
             }
@@ -1863,7 +1794,6 @@
             const settings = {
                 defaultQuality: document.getElementById('settDefaultQuality').value,
                 defaultFormat: document.getElementById('settDefaultFormat').value,
-                alwaysDirectPc: document.getElementById('settAlwaysDirectPc')?.checked === true,
                 darkMode: document.body.classList.contains('dark')
             };
             localStorage.setItem('vg_settings', JSON.stringify(settings));
@@ -1874,7 +1804,7 @@
 
         function loadSettings() {
             const settings = JSON.parse(localStorage.getItem('vg_settings') || '{}');
-            // v7.5+ migration: force quality default to 'best' if user has stale '720'
+            // v6.6+ migration: force quality default to 'best' if user has stale '720'
             if (!settings.defaultQuality || settings.defaultQuality === '720') {
                 settings.defaultQuality = 'best';
                 localStorage.setItem('vg_settings', JSON.stringify(settings));
@@ -1891,7 +1821,6 @@
             const settings = JSON.parse(localStorage.getItem('vg_settings') || '{}');
             if (settings.defaultQuality) document.getElementById('settDefaultQuality').value = settings.defaultQuality;
             if (settings.defaultFormat) document.getElementById('settDefaultFormat').value = settings.defaultFormat;
-            if (document.getElementById('settAlwaysDirectPc')) document.getElementById('settAlwaysDirectPc').checked = settings.alwaysDirectPc === true;
             document.getElementById('settDarkToggle').checked = document.body.classList.contains('dark');
             // Mask token display
             updateTokenDisplay();
@@ -1957,354 +1886,6 @@
             document.getElementById('searchResults').innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-search fs-1 d-block mb-2" style="opacity:0.3"></i>חפש סרטונים מ-Dailymotion, Vimeo, הידברות ו-Archive.org</div>';
             showToast('הצעות חיפוש נמחקו', 'success');
         }
-
-        // === Google Web Search ===
-        const GOOGLE_API = 'https://script.google.com/macros/s/AKfycbx6P8RJi1PCYl_fAnblzQ4wCm2KwkORszbOyVQgVGnjjuPX0QS1n1tCNSdh38jBWayXtQ/exec'; // legacy proxy (broken)
-        const GOOGLE_RESULTS_URL = `https://raw.githubusercontent.com/${REPO}/master/docs/google_results.json`;
-        let googleSearchFilter = 'web';
-        let lastGoogleResults = [];
-        let googleSearchTime = 0;
-
-        function setGoogleFilter(el, type) {
-            document.querySelectorAll('#googleFilterTabs .google-filter-tab').forEach(t => t.classList.remove('active'));
-            el.classList.add('active');
-            googleSearchFilter = type;
-            if (lastGoogleResults.length) {
-                displayGoogleResults(filterGoogleResults(lastGoogleResults), document.getElementById('googleSearchInput').value);
-            }
-        }
-
-        function filterGoogleResults(results) {
-            if (googleSearchFilter === 'web') return results;
-            return results.filter(r => {
-                const url = (r.url || r.link || '').toLowerCase();
-                const title = (r.title || '').toLowerCase();
-                switch (googleSearchFilter) {
-                    case 'image':
-                        return /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(url) || /image|photo|picture|תמונ/i.test(title);
-                    case 'video':
-                        return /youtube|youtu\.be|vimeo|dailymotion|\.(mp4|avi|mkv|mov|webm)(\?|$)/i.test(url) || /video|סרטון|שיעור/i.test(title);
-                    case 'doc':
-                        return /\.(pdf|doc|docx|txt|xlsx|csv)(\?|$)/i.test(url) || /document|מסמך/i.test(title);
-                    case 'presentation':
-                        return /\.(ppt|pptx|key|odp)(\?|$)/i.test(url) || /slides|presentation|מצגת/i.test(title);
-                    default: return true;
-                }
-            });
-        }
-
-        async function googleSearch() {
-            const query = document.getElementById('googleSearchInput').value.trim();
-            if (!query) return;
-
-            // CONTENT FILTER - CANNOT BE BYPASSED
-            if (_CF.check(query)) {
-                document.getElementById('googleResults').innerHTML = '<div class="content-warning p-4 text-center"><i class="bi bi-shield-x fs-1 d-block mb-2"></i><strong>חיפוש זה חסום</strong><p class="mb-0 mt-1">המערכת מסננת תוכן לא צנוע</p></div>';
-                showToast(_CF.msg, 'warning');
-                return;
-            }
-            if (!GH_TOKEN) { new bootstrap.Modal(document.getElementById('setupModal')).show(); return; }
-
-            googleSearchTime = performance.now();
-            const el = document.getElementById('googleResults');
-            const renderProgress = (txt, sub) => { el.innerHTML = `<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2 fw-bold">${txt}</p><p class="small text-muted">${sub||''}</p></div>`; };
-            renderProgress('מפעיל חיפוש...', 'שולח בקשה ל-GitHub Actions');
-
-            // Capture pre-dispatch run ID so we can find OUR run
-            const runsBefore = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/google-search.yml/runs?per_page=1`, {
-                headers: { 'Authorization': `token ${GH_TOKEN}` }
-            }).then(r => r.ok ? r.json() : {workflow_runs:[]}).catch(() => ({workflow_runs:[]}));
-            const lastRunId = runsBefore.workflow_runs?.[0]?.id || 0;
-
-            // Trigger workflow
-            try {
-                const dispatchResp = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/google-search.yml/dispatches`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ref: 'master', inputs: { query: query, type: googleSearchFilter || 'web' } })
-                });
-                if (dispatchResp.status !== 204) {
-                    const errTxt = await dispatchResp.text().catch(() => '');
-                    el.innerHTML = `<div class="text-center py-4 text-danger"><i class="bi bi-exclamation-circle fs-2 d-block mb-2"></i><p>שגיאה בהפעלת חיפוש: HTTP ${dispatchResp.status}</p><pre class="small text-start" style="max-height:150px;overflow:auto">${escapeHtml(errTxt.slice(0,400))}</pre><button class="btn btn-sm btn-outline-primary mt-2" onclick="googleSearch()">נסה שוב</button></div>`;
-                    return;
-                }
-            } catch(e) {
-                el.innerHTML = `<div class="text-center py-4 text-danger"><i class="bi bi-wifi-off fs-2 d-block mb-2"></i><p>שגיאת רשת: ${escapeHtml(e.message)}</p></div>`;
-                return;
-            }
-
-            // Phase 1: Wait for our run to appear (workflow_dispatch is async, run shows up 1-3s later)
-            let myRunId = null;
-            for (let i = 0; i < 12; i++) {
-                renderProgress('ממתין שהריצה תתחיל...', `שלב 1/2 · ${i+1}s`);
-                await new Promise(r => setTimeout(r, 1000));
-                try {
-                    const runs = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/google-search.yml/runs?per_page=3&_=${Date.now()}`, {
-                        headers: { 'Authorization': `token ${GH_TOKEN}` }
-                    }).then(r => r.json());
-                    const newRun = (runs.workflow_runs || []).find(r => r.id > lastRunId && r.event === 'workflow_dispatch');
-                    if (newRun) { myRunId = newRun.id; break; }
-                } catch(e) {}
-            }
-            if (!myRunId) {
-                el.innerHTML = '<div class="text-center py-4 text-warning"><i class="bi bi-clock fs-2 d-block mb-2"></i><p>הריצה לא התחילה תוך 12 שניות. נסה שוב.</p><button class="btn btn-sm btn-outline-primary mt-2" onclick="googleSearch()">נסה שוב</button></div>';
-                return;
-            }
-
-            // Phase 2: Poll the specific run until completion
-            for (let i = 0; i < 60; i++) {
-                renderProgress('מבצע חיפוש בDuckDuckGo + Bing...', `שלב 2/2 · ${i*2}s`);
-                await new Promise(r => setTimeout(r, 2000));
-                try {
-                    const run = await fetch(`https://api.github.com/repos/${REPO}/actions/runs/${myRunId}?_=${Date.now()}`, {
-                        headers: { 'Authorization': `token ${GH_TOKEN}` }
-                    }).then(r => r.json());
-                    if (run.status === 'completed') {
-                        if (run.conclusion !== 'success') {
-                            el.innerHTML = `<div class="text-center py-4 text-danger"><i class="bi bi-exclamation-triangle fs-2 d-block mb-2"></i><p>הריצה נכשלה: ${escapeHtml(run.conclusion||'')}</p><a href="${run.html_url}" target="_blank" class="btn btn-sm btn-outline-secondary mt-2">צפה בלוג</a></div>`;
-                            return;
-                        }
-                        // Run succeeded — fetch the file
-                        const fr = await fetch(`https://api.github.com/repos/${REPO}/contents/docs/google_results.json?_=${Date.now()}`, {
-                            headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3.raw' }
-                        });
-                        if (!fr.ok) {
-                            el.innerHTML = `<div class="text-center py-4 text-danger"><p>שגיאה בטעינת תוצאות: HTTP ${fr.status}</p></div>`;
-                            return;
-                        }
-                        const data = await fr.json();
-                        const results = (data.results || []).filter(r => !_CF.check(r.title) && !_CF.checkUrl(r.url || r.link) && !_CF.check(r.snippet || ''));
-                        lastGoogleResults = results;
-                        displayGoogleResults(filterGoogleResults(results), query);
-                        return;
-                    }
-                } catch(e) {}
-            }
-            el.innerHTML = '<div class="text-center py-4 text-warning"><i class="bi bi-clock fs-2 d-block mb-2"></i><p>החיפוש לוקח יותר מ-2 דקות. ייתכן שיש עומס. נסה שוב.</p><button class="btn btn-sm btn-outline-primary mt-2" onclick="googleSearch()">נסה שוב</button></div>';
-        }
-
-        function displayGoogleResults(results, query) {
-            const el = document.getElementById('googleResults');
-            const elapsed = ((performance.now() - googleSearchTime) / 1000).toFixed(2);
-
-            if (!results || !results.length) {
-                el.innerHTML = `<div class="text-center py-5 text-muted">
-                    <i class="bi bi-search fs-1 d-block mb-2"></i>
-                    <h6>לא נמצאו תוצאות עבור "${query}"</h6>
-                    <p class="small">נסה מונח אחר או שנה את הפילטר</p>
-                </div>`;
-                return;
-            }
-
-            let html = `<div class="small text-muted mb-3">כ-${results.length} תוצאות (${elapsed} שניות) · <span class="text-info"><i class="bi bi-info-circle"></i> לחץ על תוצאה כדי לפתוח</span></div>`;
-            for (const r of results) {
-                const url = r.url || r.link || '';
-                const domain = getDomain(url);
-                const favicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
-                const title = r.title || url;
-                const snippet = r.description || r.snippet || '';
-
-                // CONTENT FILTER on each result
-                if (_CF.check(title) || _CF.checkUrl(url)) continue;
-
-                const safeUrl = url.replace(/'/g, "\\'");
-                html += `<div class="google-result clickable-result" onclick="openSearchResult('${safeUrl}')" style="cursor:pointer;border-radius:8px;padding:14px;margin-bottom:6px;transition:background .15s" onmouseover="this.style.background='rgba(108,92,231,0.08)'" onmouseout="this.style.background='transparent'">
-                    <div class="gr-url">
-                        <img src="${favicon}" onerror="this.style.display='none'">
-                        <span>${domain}</span>
-                    </div>
-                    <div class="gr-title">${title}</div>
-                    <div class="gr-snippet">${snippet}</div>
-                    <div class="gr-actions" onclick="event.stopPropagation()">
-                        <button class="btn btn-sm btn-success me-1" onclick="event.stopPropagation();startDirectPcDownload('${safeUrl}')" data-bs-toggle="tooltip" title="הורד ישירות למחשב (דורש סקריפט מקומי)"><i class="bi bi-lightning-charge me-1"></i>הורד למחשב</button>
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="event.stopPropagation();startDownload('${safeUrl}')" data-bs-toggle="tooltip" title="הורד לדרייב"><i class="bi bi-cloud-arrow-down me-1"></i>הורד לדרייב</button>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation();copyUrl('${safeUrl}')" data-bs-toggle="tooltip" title="העתק קישור"><i class="bi bi-clipboard me-1"></i>העתק</button>
-                    </div>
-                </div>`;
-            }
-            el.innerHTML = html;
-            initTooltips();
-        }
-
-        // Direct-to-PC download from search results — bypasses Drive entirely
-        async function startDirectPcDownload(url) {
-            if (!url) return;
-            if (_CF.checkUrl(url)) { showToast(_CF.msg, 'warning'); return; }
-            if (!GH_TOKEN) { new bootstrap.Modal(document.getElementById('setupModal')).show(); return; }
-            const settings = JSON.parse(localStorage.getItem('vg_settings') || '{}');
-            const quality = settings.defaultQuality || 'best';
-            await addToPcQueue(url, quality);
-        }
-
-        function openSearchResult(url) {
-            if (!url) return;
-            if (_CF.checkUrl(url)) { showToast(_CF.msg, 'warning'); return; }
-            // ALWAYS go through proxy — NetFree blocks direct loads of many sites
-            openViaProxy(url);
-        }
-
-        // SHA-1 hash of URL → first 16 chars (matches workflow logic)
-        async function urlToHash(url) {
-            const enc = new TextEncoder().encode(url);
-            const buf = await crypto.subtle.digest('SHA-1', enc);
-            return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('').substring(0,16);
-        }
-
-        // Fetch page via GitHub Actions (NetFree-bypass: content stored on github.io which is whitelisted)
-        async function openViaProxy(url) {
-            if (!GH_TOKEN) { showToast('צריך טוקן GitHub', 'warning'); return; }
-            const old = document.getElementById('inAppViewer');
-            if (old) old.remove();
-            const domain = getDomain(url);
-            const safeUrl = url.replace(/'/g,"\\'");
-            const v = document.createElement('div');
-            v.id = 'inAppViewer';
-            v.innerHTML = `<div style="position:fixed;inset:0;background:#fff;z-index:10000;display:flex;flex-direction:column">
-                <div style="background:#202124;color:#fff;padding:8px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0">
-                    <button onclick="closeInAppViewer()" class="btn btn-sm btn-light"><i class="bi bi-arrow-right"></i></button>
-                    <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" style="width:18px;height:18px;border-radius:50%" onerror="this.style.display='none'">
-                    <span style="flex:1;direction:ltr;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.85rem">${escapeHtml(url)} <span class="badge bg-success">דרך פרוקסי</span></span>
-                    <button onclick="startDownload('${safeUrl}')" class="btn btn-sm btn-primary"><i class="bi bi-cloud-arrow-down me-1"></i>הורד</button>
-                </div>
-                <div style="flex:1;display:flex;align-items:center;justify-content:center;background:#fff;padding:30px;text-align:center" id="proxyBody">
-                    <div>
-                        <div class="spinner-border text-primary mb-3" style="width:3rem;height:3rem"></div>
-                        <h5 id="proxyStatus">מוריד את הדף דרך GitHub Actions...</h5>
-                        <p class="text-muted small">עוקף את נטפרי. ~15 שניות בפעם הראשונה, מיידי בפעמים הבאות.</p>
-                        <p class="small text-muted mt-3"><span id="proxyTimer">0</span> שניות</p>
-                    </div>
-                </div>
-            </div>`;
-            document.body.appendChild(v);
-            document.body.style.overflow = 'hidden';
-            const startTime = Date.now();
-            const timerInt = setInterval(() => {
-                const t = document.getElementById('proxyTimer');
-                if (t) t.textContent = Math.floor((Date.now()-startTime)/1000);
-            }, 500);
-            // Try cached version first (faster)
-            try {
-                const hash = await urlToHash(url);
-                const cachedUrl = `https://cdn.jsdelivr.net/gh/yossi6742853/vimeo-downloader@master/docs/preview/${hash}.html`;
-                const head = await fetch(cachedUrl, { method: 'HEAD', cache: 'no-store' });
-                if (head.ok) {
-                    clearInterval(timerInt);
-                    document.getElementById('proxyBody').outerHTML = `<div style="flex:1;position:relative"><iframe src="${cachedUrl}?_=${Date.now()}" style="width:100%;height:100%;border:none;display:block" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe></div>`;
-                    return;
-                }
-            } catch(e) {}
-            try {
-                // Get last run before dispatch
-                const before = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/fetch-page.yml/runs?per_page=1`, {headers:{'Authorization':`token ${GH_TOKEN}`}}).then(r=>r.json()).catch(()=>({workflow_runs:[]}));
-                const lastRunId = before.workflow_runs?.[0]?.id || 0;
-                // Dispatch
-                const dr = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/fetch-page.yml/dispatches`, {
-                    method:'POST', headers:{'Authorization':`token ${GH_TOKEN}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
-                    body: JSON.stringify({ref:'master', inputs:{url}})
-                });
-                if (dr.status !== 204) {
-                    clearInterval(timerInt);
-                    document.getElementById('proxyStatus').innerText = 'שגיאה: workflow לא הופעל (' + dr.status + ')';
-                    return;
-                }
-                // Poll for our run
-                let myId = null;
-                for (let i = 0; i < 12; i++) {
-                    await new Promise(r => setTimeout(r, 1000));
-                    const runs = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/fetch-page.yml/runs?per_page=3`, {headers:{'Authorization':`token ${GH_TOKEN}`}}).then(r=>r.json()).catch(()=>({workflow_runs:[]}));
-                    const nr = (runs.workflow_runs||[]).find(r => r.id > lastRunId && r.event === 'workflow_dispatch');
-                    if (nr) { myId = nr.id; break; }
-                }
-                if (!myId) { clearInterval(timerInt); document.getElementById('proxyStatus').innerText='הריצה לא התחילה'; return; }
-                document.getElementById('proxyStatus').innerText = 'מבצע פרוקסי על השרת...';
-                // Wait for completion
-                for (let i = 0; i < 90; i++) {
-                    await new Promise(r => setTimeout(r, 2000));
-                    const run = await fetch(`https://api.github.com/repos/${REPO}/actions/runs/${myId}`, {headers:{'Authorization':`token ${GH_TOKEN}`}}).then(r=>r.json());
-                    if (run.status === 'completed') {
-                        clearInterval(timerInt);
-                        if (run.conclusion === 'success') {
-                            const enc = new TextEncoder().encode(url);
-                            const hashBuf = await crypto.subtle.digest('SHA-1', enc);
-                            const hash = Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,'0')).join('').substring(0,16);
-                            // Fetch HTML content directly from GitHub API (bypasses any CDN cache lag)
-                            document.getElementById('proxyStatus').innerText = 'טוען תוכן...';
-                            let htmlContent = null;
-                            for (let attempt = 0; attempt < 8; attempt++) {
-                                try {
-                                    const fr = await fetch(`https://api.github.com/repos/${REPO}/contents/docs/preview/${hash}.html?_=${Date.now()}`, {
-                                        headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3.raw' }
-                                    });
-                                    if (fr.ok) { htmlContent = await fr.text(); break; }
-                                } catch(e) {}
-                                await new Promise(r => setTimeout(r, 1500));
-                            }
-                            if (htmlContent) {
-                                // Inject directly via srcdoc — no CDN dependency, instant
-                                v.querySelector('#proxyBody').outerHTML = `<div style="flex:1;position:relative"><iframe srcdoc="${htmlContent.replace(/"/g,'&quot;')}" style="width:100%;height:100%;border:none;display:block" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe></div>`;
-                            } else {
-                                document.getElementById('proxyStatus').innerText = 'הקובץ לא נטען — נסה שוב';
-                            }
-                        } else {
-                            document.getElementById('proxyStatus').innerText = 'הפרוקסי נכשל: ' + (run.conclusion||'');
-                        }
-                        return;
-                    }
-                }
-                clearInterval(timerInt);
-                document.getElementById('proxyStatus').innerText = 'timeout — נסה שוב';
-            } catch(e) {
-                clearInterval(timerInt);
-                if (document.getElementById('proxyStatus')) document.getElementById('proxyStatus').innerText = 'שגיאה: ' + e.message;
-            }
-        }
-
-        function openInAppViewer(url) {
-            const domain = getDomain(url);
-            const old = document.getElementById('inAppViewer');
-            if (old) old.remove();
-            const v = document.createElement('div');
-            v.id = 'inAppViewer';
-            const safeUrl = url.replace(/'/g,"\\'");
-            v.innerHTML = `<div style="position:fixed;inset:0;background:#fff;z-index:10000;display:flex;flex-direction:column">
-                <div style="background:#202124;color:#fff;padding:8px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0">
-                    <button onclick="closeInAppViewer()" class="btn btn-sm btn-light" data-bs-toggle="tooltip" title="חזור"><i class="bi bi-arrow-right"></i></button>
-                    <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" style="width:18px;height:18px;border-radius:50%" onerror="this.style.display='none'">
-                    <span style="flex:1;direction:ltr;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.85rem">${escapeHtml(url)}</span>
-                    <button onclick="startDownload('${safeUrl}')" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" title="הורד"><i class="bi bi-cloud-arrow-down me-1"></i>הורד</button>
-                </div>
-                <div id="iframeWrap" style="flex:1;position:relative;background:#f0f0f0">
-                    <div id="iframeLoader" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;z-index:1">
-                        <div class="spinner-border text-primary mb-2"></div>
-                        <p class="text-muted">טוען את ${escapeHtml(domain)}...</p>
-                    </div>
-                    <iframe id="appIframe" src="${url}" style="width:100%;height:100%;border:none;display:block" allow="autoplay; encrypted-media; fullscreen" allowfullscreen onload="window._iframeLoaded=true;document.getElementById('iframeLoader').style.display='none';const fb=document.getElementById('iframeFallback');if(fb)fb.style.display='none'"></iframe>
-                    <div id="iframeFallback" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;background:#fff;padding:20px;text-align:center">
-                        <i class="bi bi-shield-exclamation" style="font-size:3rem;color:#ff9800"></i>
-                        <h5 class="mt-3">האתר חוסם טעינה ישירה (X-Frame-Options)</h5>
-                        <p class="text-muted small">${escapeHtml(domain)} לא מאפשר הטמעה. נסה דרך פרוקסי GitHub (עוקף גם נטפרי):</p>
-                        <button onclick="openViaProxy('${safeUrl}')" class="btn btn-success mt-2"><i class="bi bi-shield-check me-1"></i>פתח דרך פרוקסי</button>
-                    </div>
-                </div>
-            </div>`;
-            document.body.appendChild(v);
-            document.body.style.overflow = 'hidden';
-            window._iframeLoaded = false;
-            setTimeout(() => {
-                const loader = document.getElementById('iframeLoader');
-                if (!window._iframeLoaded && loader && loader.style.display !== 'none') {
-                    loader.style.display = 'none';
-                    const fb = document.getElementById('iframeFallback');
-                    if (fb) fb.style.display = 'flex';
-                }
-            }, 5000);
-        }
-        function closeInAppViewer() {
-            const v = document.getElementById('inAppViewer');
-            if (v) v.remove();
-            document.body.style.overflow = '';
-        }
-        document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('inAppViewer')) closeInAppViewer(); });
 
         function clearAllData() {
             if (!confirm('האם אתה בטוח שברצונך למחוק את כל הנתונים?\nפעולה זו תמחק היסטוריה, מועדפים, תור, חיפושים והגדרות.')) return;
