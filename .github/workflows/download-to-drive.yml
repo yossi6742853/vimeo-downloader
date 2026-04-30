@@ -30,7 +30,7 @@ jobs:
 
       - name: Install tools
         run: |
-          pip install -U yt-dlp playwright
+          pip install -U yt-dlp playwright curl_cffi
           playwright install chromium
           curl -fsSL https://deno.land/install.sh | sh
           echo "$HOME/.deno/bin" >> $GITHUB_PATH
@@ -44,13 +44,13 @@ jobs:
           FORMAT="${{ github.event.inputs.format }}"
           QUALITY="${{ github.event.inputs.quality }}"
 
+          IMPERSONATE='--extractor-args generic:impersonate=chrome'
           if [ "$FORMAT" = "audio" ]; then
-            # Audio only - extract as MP3
-            yt-dlp --no-overwrites -x --audio-format mp3 -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+            yt-dlp $IMPERSONATE --no-overwrites -x --audio-format mp3 -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
           elif [ "$QUALITY" = "best" ]; then
-            yt-dlp --no-overwrites --merge-output-format mp4 -f "bv*+ba/b" -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+            yt-dlp $IMPERSONATE --no-overwrites --merge-output-format mp4 -f "bv*+ba/b" -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
           else
-            yt-dlp --no-overwrites --merge-output-format mp4 -f "bv*[height<=${QUALITY}]+ba/b[height<=${QUALITY}]" -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+            yt-dlp $IMPERSONATE --no-overwrites --merge-output-format mp4 -f "bv*[height<=${QUALITY}]+ba/b[height<=${QUALITY}]" -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
           fi
 
           # If no files from yt-dlp, try extracting video from page with Playwright
