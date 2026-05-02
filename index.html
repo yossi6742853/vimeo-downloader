@@ -275,6 +275,7 @@
                         <div class="d-flex border-bottom flex-wrap">
                             <button class="tab-btn active flex-fill" onclick="switchTab('download')" id="tabBtnDownload" data-bs-toggle="tooltip" title="Ctrl+D"><i class="bi bi-download me-1"></i>הורדה</button>
                             <button class="tab-btn flex-fill" onclick="switchTab('search')" id="tabBtnSearch" data-bs-toggle="tooltip" title="Ctrl+K"><i class="bi bi-search me-1"></i>חיפוש</button>
+                            <button class="tab-btn flex-fill" onclick="switchTab('google')" id="tabBtnGoogle"><i class="bi bi-globe2 me-1"></i>חיפוש בגוגל</button>
                             <button class="tab-btn flex-fill" onclick="switchTab('queue')" id="tabBtnQueue" data-bs-toggle="tooltip" title="Ctrl+Q"><i class="bi bi-list-check me-1"></i>תור<span class="badge bg-danger rounded-pill ms-1 d-none" id="queueBadge">0</span></button>
                             <button class="tab-btn flex-fill" onclick="switchTab('favorites')" id="tabBtnFavorites"><i class="bi bi-star me-1"></i>מועדפים</button>
                             <button class="tab-btn flex-fill" onclick="switchTab('drive')" id="tabBtnDrive"><i class="bi bi-folder me-1"></i>דרייב</button>
@@ -412,6 +413,15 @@
                                     <span class="suggestion-chip" onclick="document.getElementById('searchInput').value='מוזיקה';searchVideos()">מוזיקה</span>
                                 </div>
                             </div></div>
+                        </div>
+
+                        <div id="tab-google" class="tab-pane p-4">
+                            <h6 class="fw-bold mb-3"><i class="bi bi-globe2 me-1"></i>חיפוש בגוגל</h6>
+                            <div class="input-group mb-3">
+                                <input type="text" id="googleSearchInput" class="form-control" placeholder="הקלד מה לחפש..." />
+                                <button class="btn btn-primary" onclick="googleSearchOpen()"><i class="bi bi-search me-1"></i>חפש</button>
+                            </div>
+                            <div class="text-muted small">החיפוש נפתח בכרטיסיה חדשה בגוגל. אם תמצא סרטון - העתק את הקישור ושלח אל הטאב "הורדה".</div>
                         </div>
 
                         <div id="tab-queue" class="tab-pane p-4">
@@ -808,12 +818,19 @@
             });
         }
 
+        function googleSearchOpen() {
+            const q = document.getElementById('googleSearchInput')?.value?.trim();
+            if (!q) { showToast('הקלד טקסט לחיפוש', 'warning'); return; }
+            window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank');
+        }
+
         // === Tab switching with fade ===
         const TABS = ['download','search','google','queue','favorites','drive','history','settings'];
         function switchTab(tab) {
             TABS.forEach(t => {
                 const pane = document.getElementById('tab-' + t);
                 const btn = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+                if (!pane || !btn) return; // Skip missing panes/buttons
                 if (t === tab) {
                     pane.classList.add('active-tab');
                     btn.classList.add('active');
@@ -1886,6 +1903,140 @@
             document.getElementById('searchResults').innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-search fs-1 d-block mb-2" style="opacity:0.3"></i>חפש סרטונים מ-Dailymotion, Vimeo, הידברות ו-Archive.org</div>';
             showToast('הצעות חיפוש נמחקו', 'success');
         }
+        function openSearchResult(url) {
+            if (!url) return;
+            if (_CF.checkUrl(url)) { showToast(_CF.msg, 'warning'); return; }
+            openInAppViewer(url);
+        }
+
+        // Fetch page via GitHub Actions (NetFree-bypass: content stored on github.io which is whitelisted)
+        async function openViaProxy(url) {
+            if (!GH_TOKEN) { showToast('צריך טוקן GitHub', 'warning'); return; }
+            const old = document.getElementById('inAppViewer');
+            if (old) old.remove();
+            const domain = getDomain(url);
+            const v = document.createElement('div');
+            v.id = 'inAppViewer';
+            v.innerHTML = `<div style="position:fixed;inset:0;background:#fff;z-index:10000;display:flex;flex-direction:column">
+                <div style="background:#202124;color:#fff;padding:8px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0">
+                    <button onclick="closeInAppViewer()" class="btn btn-sm btn-light"><i class="bi bi-arrow-right"></i></button>
+                    <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" style="width:18px;height:18px;border-radius:50%" onerror="this.style.display='none'">
+                    <span style="flex:1;direction:ltr;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.85rem">${escapeHtml(url)} <span class="badge bg-success">דרך פרוקסי</span></span>
+                </div>
+                <div style="flex:1;display:flex;align-items:center;justify-content:center;background:#fff;padding:30px;text-align:center">
+                    <div>
+                        <div class="spinner-border text-primary mb-3" style="width:3rem;height:3rem"></div>
+                        <h5 id="proxyStatus">מוריד את הדף דרך GitHub Actions...</h5>
+                        <p class="text-muted small">הדף יעקוף את נטפרי. ~15-30 שניות בפעם הראשונה.</p>
+                        <p class="small text-muted mt-3"><span id="proxyTimer">0</span> שניות</p>
+                    </div>
+                </div>
+            </div>`;
+            document.body.appendChild(v);
+            document.body.style.overflow = 'hidden';
+            const startTime = Date.now();
+            const timerInt = setInterval(() => {
+                const t = document.getElementById('proxyTimer');
+                if (t) t.textContent = Math.floor((Date.now()-startTime)/1000);
+            }, 500);
+            try {
+                // Get last run before dispatch
+                const before = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/fetch-page.yml/runs?per_page=1`, {headers:{'Authorization':`token ${GH_TOKEN}`}}).then(r=>r.json()).catch(()=>({workflow_runs:[]}));
+                const lastRunId = before.workflow_runs?.[0]?.id || 0;
+                // Dispatch
+                const dr = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/fetch-page.yml/dispatches`, {
+                    method:'POST', headers:{'Authorization':`token ${GH_TOKEN}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+                    body: JSON.stringify({ref:'master', inputs:{url}})
+                });
+                if (dr.status !== 204) {
+                    clearInterval(timerInt);
+                    document.getElementById('proxyStatus').innerText = 'שגיאה: workflow לא הופעל (' + dr.status + ')';
+                    return;
+                }
+                // Poll for our run
+                let myId = null;
+                for (let i = 0; i < 12; i++) {
+                    await new Promise(r => setTimeout(r, 1000));
+                    const runs = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/fetch-page.yml/runs?per_page=3`, {headers:{'Authorization':`token ${GH_TOKEN}`}}).then(r=>r.json()).catch(()=>({workflow_runs:[]}));
+                    const nr = (runs.workflow_runs||[]).find(r => r.id > lastRunId && r.event === 'workflow_dispatch');
+                    if (nr) { myId = nr.id; break; }
+                }
+                if (!myId) { clearInterval(timerInt); document.getElementById('proxyStatus').innerText='הריצה לא התחילה'; return; }
+                document.getElementById('proxyStatus').innerText = 'מבצע פרוקסי על השרת...';
+                // Wait for completion
+                for (let i = 0; i < 90; i++) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    const run = await fetch(`https://api.github.com/repos/${REPO}/actions/runs/${myId}`, {headers:{'Authorization':`token ${GH_TOKEN}`}}).then(r=>r.json());
+                    if (run.status === 'completed') {
+                        clearInterval(timerInt);
+                        if (run.conclusion === 'success') {
+                            // Calculate hash same way as workflow (sha1 of url, first 16 chars)
+                            const enc = new TextEncoder().encode(url);
+                            const hashBuf = await crypto.subtle.digest('SHA-1', enc);
+                            const hash = Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,'0')).join('').substring(0,16);
+                            const proxyUrl = `https://yossi6742853.github.io/vimeo-downloader/preview/${hash}.html`;
+                            // Replace viewer body with iframe
+                            v.querySelector('div[style*="flex:1"]').outerHTML = `<div style="flex:1;position:relative"><iframe src="${proxyUrl}" style="width:100%;height:100%;border:none;display:block" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe></div>`;
+                        } else {
+                            document.getElementById('proxyStatus').innerText = 'הפרוקסי נכשל: ' + (run.conclusion||'');
+                        }
+                        return;
+                    }
+                }
+                clearInterval(timerInt);
+                document.getElementById('proxyStatus').innerText = 'timeout — נסה שוב';
+            } catch(e) {
+                clearInterval(timerInt);
+                if (document.getElementById('proxyStatus')) document.getElementById('proxyStatus').innerText = 'שגיאה: ' + e.message;
+            }
+        }
+
+        function openInAppViewer(url) {
+            const domain = getDomain(url);
+            const old = document.getElementById('inAppViewer');
+            if (old) old.remove();
+            const v = document.createElement('div');
+            v.id = 'inAppViewer';
+            const safeUrl = url.replace(/'/g,"\\'");
+            v.innerHTML = `<div style="position:fixed;inset:0;background:#fff;z-index:10000;display:flex;flex-direction:column">
+                <div style="background:#202124;color:#fff;padding:8px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0">
+                    <button onclick="closeInAppViewer()" class="btn btn-sm btn-light" data-bs-toggle="tooltip" title="חזור"><i class="bi bi-arrow-right"></i></button>
+                    <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" style="width:18px;height:18px;border-radius:50%" onerror="this.style.display='none'">
+                    <span style="flex:1;direction:ltr;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.85rem">${escapeHtml(url)}</span>
+                    <button onclick="startDownload('${safeUrl}')" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" title="הורד"><i class="bi bi-cloud-arrow-down me-1"></i>הורד</button>
+                </div>
+                <div id="iframeWrap" style="flex:1;position:relative;background:#f0f0f0">
+                    <div id="iframeLoader" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;z-index:1">
+                        <div class="spinner-border text-primary mb-2"></div>
+                        <p class="text-muted">טוען את ${escapeHtml(domain)}...</p>
+                    </div>
+                    <iframe id="appIframe" src="${url}" style="width:100%;height:100%;border:none;display:block" allow="autoplay; encrypted-media; fullscreen" allowfullscreen onload="window._iframeLoaded=true;document.getElementById('iframeLoader').style.display='none';const fb=document.getElementById('iframeFallback');if(fb)fb.style.display='none'"></iframe>
+                    <div id="iframeFallback" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;background:#fff;padding:20px;text-align:center">
+                        <i class="bi bi-shield-exclamation" style="font-size:3rem;color:#ff9800"></i>
+                        <h5 class="mt-3">האתר חוסם טעינה ישירה (X-Frame-Options)</h5>
+                        <p class="text-muted small">${escapeHtml(domain)} לא מאפשר הטמעה. נסה דרך פרוקסי GitHub (עוקף גם נטפרי):</p>
+                        <button onclick="openViaProxy('${safeUrl}')" class="btn btn-success mt-2"><i class="bi bi-shield-check me-1"></i>פתח דרך פרוקסי</button>
+                    </div>
+                </div>
+            </div>`;
+            document.body.appendChild(v);
+            document.body.style.overflow = 'hidden';
+            window._iframeLoaded = false;
+            setTimeout(() => {
+                const loader = document.getElementById('iframeLoader');
+                if (!window._iframeLoaded && loader && loader.style.display !== 'none') {
+                    loader.style.display = 'none';
+                    const fb = document.getElementById('iframeFallback');
+                    if (fb) fb.style.display = 'flex';
+                }
+            }, 5000);
+        }
+        function closeInAppViewer() {
+            const v = document.getElementById('inAppViewer');
+            if (v) v.remove();
+            document.body.style.overflow = '';
+        }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('inAppViewer')) closeInAppViewer(); });
 
         function clearAllData() {
             if (!confirm('האם אתה בטוח שברצונך למחוק את כל הנתונים?\nפעולה זו תמחק היסטוריה, מועדפים, תור, חיפושים והגדרות.')) return;
