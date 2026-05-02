@@ -275,7 +275,6 @@
                         <div class="d-flex border-bottom flex-wrap">
                             <button class="tab-btn active flex-fill" onclick="switchTab('download')" id="tabBtnDownload" data-bs-toggle="tooltip" title="Ctrl+D"><i class="bi bi-download me-1"></i>הורדה</button>
                             <button class="tab-btn flex-fill" onclick="switchTab('search')" id="tabBtnSearch" data-bs-toggle="tooltip" title="Ctrl+K"><i class="bi bi-search me-1"></i>חיפוש</button>
-                            <button class="tab-btn flex-fill" onclick="switchTab('google')" id="tabBtnGoogle"><i class="bi bi-globe2 me-1"></i>חיפוש בגוגל</button>
                             <button class="tab-btn flex-fill" onclick="switchTab('queue')" id="tabBtnQueue" data-bs-toggle="tooltip" title="Ctrl+Q"><i class="bi bi-list-check me-1"></i>תור<span class="badge bg-danger rounded-pill ms-1 d-none" id="queueBadge">0</span></button>
                             <button class="tab-btn flex-fill" onclick="switchTab('favorites')" id="tabBtnFavorites"><i class="bi bi-star me-1"></i>מועדפים</button>
                             <button class="tab-btn flex-fill" onclick="switchTab('drive')" id="tabBtnDrive"><i class="bi bi-folder me-1"></i>דרייב</button>
@@ -413,15 +412,6 @@
                                     <span class="suggestion-chip" onclick="document.getElementById('searchInput').value='מוזיקה';searchVideos()">מוזיקה</span>
                                 </div>
                             </div></div>
-                        </div>
-
-                        <div id="tab-google" class="tab-pane p-4">
-                            <h6 class="fw-bold mb-3"><i class="bi bi-globe2 me-1"></i>חיפוש בגוגל</h6>
-                            <div class="input-group mb-3">
-                                <input type="text" id="googleSearchInput" class="form-control" placeholder="הקלד מה לחפש..." />
-                                <button class="btn btn-primary" onclick="googleSearchOpen()"><i class="bi bi-search me-1"></i>חפש</button>
-                            </div>
-                            <div class="text-muted small">החיפוש נפתח בכרטיסיה חדשה בגוגל. אם תמצא סרטון - העתק את הקישור ושלח אל הטאב "הורדה".</div>
                         </div>
 
                         <div id="tab-queue" class="tab-pane p-4">
@@ -825,7 +815,7 @@
         }
 
         // === Tab switching with fade ===
-        const TABS = ['download','search','google','queue','favorites','drive','history','settings'];
+        const TABS = ['download','search','queue','favorites','drive','history','settings'];
         function switchTab(tab) {
             TABS.forEach(t => {
                 const pane = document.getElementById('tab-' + t);
