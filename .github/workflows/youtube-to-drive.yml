@@ -96,6 +96,81 @@ jobs:
           echo "=== Files ==="
           ls -lh videos/ || echo "No files"
 
+      - name: AI Summary + tags
+        if: always()
+        env:
+          GH_TOKEN_FOR_AI: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_URL: ${{ github.event.inputs.url }}
+        run: |
+          python3 << 'PYEOF'
+          import os, json, subprocess, glob
+          # Get video metadata via yt-dlp (no actual download)
+          url = os.environ.get('SOURCE_URL', '')
+          if not url: exit()
+          try:
+              r = subprocess.run(['yt-dlp', '--dump-json', '--no-playlist', '--skip-download', url],
+                  capture_output=True, text=True, timeout=30, encoding='utf-8', errors='ignore')
+              meta = json.loads(r.stdout.strip().split('\n')[0]) if r.stdout else {}
+          except Exception as e:
+              print(f'meta fetch failed: {e}')
+              meta = {}
+          title = meta.get('title', '')
+          desc = (meta.get('description') or '')[:3000]
+          duration = meta.get('duration', 0)
+          channel = meta.get('uploader') or meta.get('channel', '')
+          tags = meta.get('tags') or []
+
+          summary_data = {
+              'title': title,
+              'channel': channel,
+              'duration_seconds': duration,
+              'tags': tags[:20],
+              'description': desc,
+              'source_url': url,
+          }
+
+          # Try AI summary using GitHub Models (free with built-in token)
+          if title and os.environ.get('GH_TOKEN_FOR_AI'):
+              try:
+                  import urllib.request
+                  prompt = f"""תן סיכום קצר בעברית של 2-3 משפטים על הסרטון הבא, ו-3-5 תגיות בעברית.
+
+  כותרת: {title}
+  ערוץ: {channel}
+  אורך: {duration//60} דקות
+  תיאור: {desc[:500]}
+
+  פורמט: JSON {{"summary":"...","tags":["..."]}}"""
+                  data = json.dumps({
+                      'model': 'gpt-4o-mini',
+                      'messages': [{'role': 'user', 'content': prompt}],
+                      'max_tokens': 300,
+                      'temperature': 0.3,
+                      'response_format': {'type': 'json_object'},
+                  }).encode()
+                  req = urllib.request.Request(
+                      'https://models.inference.ai.azure.com/chat/completions',
+                      data=data, method='POST',
+                      headers={'Authorization': f"Bearer {os.environ['GH_TOKEN_FOR_AI']}", 'Content-Type': 'application/json'}
+                  )
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      result = json.load(resp)
+                      ai_text = result['choices'][0]['message']['content']
+                      ai_data = json.loads(ai_text)
+                      summary_data['ai_summary'] = ai_data.get('summary', '')
+                      summary_data['ai_tags'] = ai_data.get('tags', [])
+                      print(f"AI summary: {ai_data.get('summary')[:100]}")
+              except Exception as e:
+                  print(f'AI summary failed: {e}')
+
+          # Save to .json sidecar next to each video
+          for fp in glob.glob('videos/*'):
+              if not fp.endswith(('.mp4','.mkv','.webm','.mov')): continue
+              with open(fp + '.json', 'w', encoding='utf-8') as f:
+                  json.dump(summary_data, f, ensure_ascii=False, indent=1)
+              print(f'Sidecar saved: {fp}.json')
+          PYEOF
+
       - name: Upload to Google Drive
         if: always()
         env:
@@ -129,6 +204,8 @@ jobs:
               if sz < 1000: continue
               fn = os.path.basename(fp)
               print(f'Uploading: {fn} ({sz/1024/1024:.1f} MB)')
+              # Skip the JSON sidecar in the main loop - upload separately after
+              if fp.endswith('.json'): continue
               mime = mimetypes.guess_type(fn)[0] or 'video/mp4'
               r = requests.post('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,size,mimeType',
                   headers={**headers, 'Content-Type': 'application/json'}, json={'name': fn, 'parents': [fid]})
