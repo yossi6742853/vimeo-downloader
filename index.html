@@ -367,6 +367,11 @@
                                 <span class="filter-pill" data-source="Vimeo" onclick="setSearchFilter(this,'Vimeo')"><i class="bi bi-vimeo me-1"></i>Vimeo</span>
                                 <span class="filter-pill" data-source="הידברות" onclick="setSearchFilter(this,'הידברות')"><i class="bi bi-book me-1"></i>הידברות</span>
                                 <span class="filter-pill" data-source="Archive.org" onclick="setSearchFilter(this,'Archive.org')"><i class="bi bi-archive me-1"></i>Archive.org</span>
+                                <span class="filter-pill" data-source="Rumble" onclick="setSearchFilter(this,'Rumble')"><i class="bi bi-broadcast me-1"></i>Rumble</span>
+                                <span class="filter-pill" data-source="Odysee" onclick="setSearchFilter(this,'Odysee')"><i class="bi bi-stars me-1"></i>Odysee</span>
+                                <span class="filter-pill" data-source="Bitchute" onclick="setSearchFilter(this,'Bitchute')"><i class="bi bi-camera-reels me-1"></i>Bitchute</span>
+                                <span class="filter-pill" data-source="Wikimedia" onclick="setSearchFilter(this,'Wikimedia')"><i class="bi bi-wikipedia me-1"></i>Wikimedia</span>
+                                <span class="filter-pill" data-source="SlideShare" onclick="setSearchFilter(this,'SlideShare')"><i class="bi bi-easel me-1"></i>SlideShare</span>
                             </div>
                             <!-- Advanced filters -->
                             <div id="advFiltersBar" class="mb-2">
@@ -398,14 +403,22 @@
                                     <span class="adv-filter-chip" data-filter="type" data-val="audio" onclick="setAdvFilter('type',this)"><i class="bi bi-music-note me-1"></i>שמע</span>
                                     <span class="adv-filter-chip" data-filter="type" data-val="image" onclick="setAdvFilter('type',this)"><i class="bi bi-image me-1"></i>תמונות</span>
                                     <span class="adv-filter-chip" data-filter="type" data-val="doc" onclick="setAdvFilter('type',this)"><i class="bi bi-file-earmark-text me-1"></i>מסמכים</span>
+                                    <span class="adv-filter-chip" data-filter="type" data-val="presentation" onclick="setAdvFilter('type',this)"><i class="bi bi-easel me-1"></i>מצגות</span>
+                                </div>
+                                <div class="adv-filter-row">
+                                    <span class="afr-label"><i class="bi bi-list-ol me-1"></i>כמות:</span>
+                                    <span class="adv-filter-chip" data-filter="limit" data-val="25" onclick="setAdvFilter('limit',this)">25</span>
+                                    <span class="adv-filter-chip active" data-filter="limit" data-val="50" onclick="setAdvFilter('limit',this)">50</span>
+                                    <span class="adv-filter-chip" data-filter="limit" data-val="75" onclick="setAdvFilter('limit',this)">75</span>
+                                    <span class="adv-filter-chip" data-filter="limit" data-val="100" onclick="setAdvFilter('limit',this)">100</span>
                                 </div>
                             </div>
                             <!-- Recent searches (inline chips) -->
                             <div id="recentSearches" class="mb-3 d-none"></div>
                             <div id="searchResults"><div class="no-results">
                                 <i class="bi bi-search d-block"></i>
-                                <h5>חפש סרטונים מכל המקורות</h5>
-                                <p>Dailymotion, Vimeo, הידברות, Archive.org ועוד</p>
+                                <h5>חפש בכל הרשת</h5>
+                                <p>YouTube, Dailymotion, Vimeo, הידברות, Archive.org, Rumble, Odysee, Bitchute, Wikimedia, SlideShare</p>
                                 <div class="mt-3">
                                     <span class="suggestion-chip" onclick="document.getElementById('searchInput').value='שיעור תורה';searchVideos()">שיעור תורה</span>
                                     <span class="suggestion-chip" onclick="document.getElementById('searchInput').value='הרב זמיר כהן';searchVideos()">הרב זמיר כהן</span>
@@ -921,6 +934,15 @@
             startDownload(url, f, q);
         }
 
+        // === Download from new search UI — uses pre-built per-result format list ===
+        function startDownloadFromSearch(url, idx) {
+            const sel = document.getElementById(`sfmt_${idx}`);
+            const fi = sel ? parseInt(sel.value, 10) : 0;
+            const fmts = (window.__searchFormats || {})[`r${idx}`];
+            const f = (fmts && fmts[fi]) ? fmts[fi] : { format: 'video', value: 'best' };
+            startDownload(url, f.format || 'video', f.value || 'best');
+        }
+
         // === Download with content filter + progress tracking ===
         async function startDownload(url, overrideFormat, overrideQuality) {
             if (!url || !url.startsWith('http')) { showToast('הכנס קישור תקין', 'error'); return; }
@@ -1288,7 +1310,7 @@
             }
         }
         // === Advanced filters state ===
-        let advFilters = { date: 'all', duration: 'all', sort: 'relevance', type: 'all' };
+        let advFilters = { date: 'all', duration: 'all', sort: 'relevance', type: 'all', limit: '50' };
 
         function setAdvFilter(category, el) {
             advFilters[category] = el.dataset.val;
@@ -1333,11 +1355,11 @@
                 });
             }
 
-            // Type filter
+            // Type filter — prefer server-provided kind, fallback to URL detection
             if (advFilters.type !== 'all') {
                 filtered = filtered.filter(v => {
-                    const ft = detectFileType(v.url || '');
-                    return ft.type === advFilters.type;
+                    const k = v.kind || detectFileType(v.url || '').type;
+                    return k === advFilters.type;
                 });
             }
 
@@ -1417,11 +1439,15 @@
                 }
             } catch(e) { console.log('Fast search error:', e); }
 
-            // SLOW: Also trigger GitHub Actions for more sources (Dailymotion, Vimeo, etc.)
+            // SLOW: Also trigger GitHub Actions for more sources (Dailymotion, Vimeo, Rumble, Odysee, Bitchute, Wikimedia, SlideShare)
             fetch(`https://api.github.com/repos/${REPO}/actions/workflows/search.yml/dispatches`, {
                 method: 'POST',
                 headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' },
-                body: JSON.stringify({ ref: 'master', inputs: { query: query } })
+                body: JSON.stringify({ ref: 'master', inputs: {
+                    query: query,
+                    type: advFilters.type || 'all',
+                    limit: String(advFilters.limit || '50')
+                } })
             }).catch(() => {});
 
             // Poll for GitHub Actions results (adds more sources)
@@ -1470,7 +1496,7 @@
             let html = `<div class="py-2">
                 <div class="d-flex align-items-center mb-3 p-2" style="background:#f0f0ff;border-radius:10px">
                     <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                    <span class="fw-bold" style="font-size:.9rem">מחפש ב-Dailymotion, Vimeo, הידברות, Archive.org...</span>
+                    <span class="fw-bold" style="font-size:.9rem">מחפש ב-YouTube, Dailymotion, Vimeo, הידברות, Archive.org, Rumble, Odysee, Bitchute, Wikimedia, SlideShare...</span>
                     <span class="search-timer text-muted me-auto" style="font-size:.8rem"></span>
                 </div>`;
             for (let i = 0; i < 5; i++) {
@@ -1514,8 +1540,9 @@
                 return;
             }
 
-            const badgeColors = {'YouTube':'bg-danger','Dailymotion':'bg-info','Vimeo':'bg-primary','הידברות':'bg-success','Archive.org':'bg-warning text-dark'};
-            const sourceIcons = {'YouTube':'bi-youtube','Dailymotion':'bi-play-circle','Vimeo':'bi-vimeo','הידברות':'bi-book','Archive.org':'bi-archive'};
+            const badgeColors = {'YouTube':'bg-danger','Dailymotion':'bg-info','Vimeo':'bg-primary','הידברות':'bg-success','Archive.org':'bg-warning text-dark','Rumble':'bg-success','Odysee':'bg-warning text-dark','Bitchute':'bg-secondary','Wikimedia':'bg-dark','SlideShare':'bg-info text-dark'};
+            const sourceIcons = {'YouTube':'bi-youtube','Dailymotion':'bi-play-circle','Vimeo':'bi-vimeo','הידברות':'bi-book','Archive.org':'bi-archive','Rumble':'bi-broadcast','Odysee':'bi-stars','Bitchute':'bi-camera-reels','Wikimedia':'bi-wikipedia','SlideShare':'bi-easel'};
+            const kindBadge = {'video':{c:'bg-primary',i:'bi-film',l:'וידאו'},'audio':{c:'bg-success',i:'bi-music-note',l:'שמע'},'image':{c:'bg-info text-dark',i:'bi-image',l:'תמונה'},'doc':{c:'bg-warning text-dark',i:'bi-file-earmark-text',l:'מסמך'},'presentation':{c:'bg-danger',i:'bi-easel',l:'מצגת'}};
             const isGrid = searchViewMode === 'grid';
             const cacheLabel = fromCache ? ' <span class="badge bg-secondary" style="font-size:.65rem">מהמטמון</span>' : '';
 
@@ -1540,13 +1567,30 @@
                     ? `<div style="position:relative;flex-shrink:0"><img src="${v.thumb}" class="video-thumb me-3" onerror="this.parentElement.outerHTML='<div class=\\'video-thumb-placeholder me-3\\'><i class=\\'bi bi-film fs-3 text-muted\\'></i></div>'">${thumbInner}</div>`
                     : `<div class="video-thumb-placeholder me-3"><i class="bi bi-film fs-3 text-muted"></i></div>`;
 
+                const idx = videos.indexOf(v);
+                const kind = v.kind || (detectFileType(v.url||'').type);
+                const kb = kindBadge[kind] || kindBadge.video;
+                // Build format dropdown from server-supplied formats, fallback to default video set
+                const fmts = (Array.isArray(v.formats) && v.formats.length) ? v.formats : [
+                    {label:'MP4 מלא', value:'best', format:'video'},
+                    {label:'MP4 720p', value:'720', format:'video'},
+                    {label:'MP4 480p', value:'480', format:'video'},
+                    {label:'MP3 שמע', value:'best', format:'audio'},
+                ];
+                const fmtOptions = fmts.map((f,fi) => `<option value="${fi}"${fi===0?' selected':''}>${f.label}</option>`).join('');
+                // Stash formats globally so download handler can read them
+                window.__searchFormats = window.__searchFormats || {};
+                window.__searchFormats[`r${idx}`] = fmts;
+                const safeUrl = (v.url||'').replace(/'/g, "\\'");
+
                 html += `<div class="video-result-col ${colClass}">
                     <div class="video-result p-3 mb-2 d-flex align-items-start">
                         ${thumb}
                         <div class="video-info flex-grow-1">
                             <div class="video-title">${v.title}</div>
-                            <div class="d-flex align-items-center gap-2 mb-1">
+                            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
                                 <span class="badge ${badge} badge-source"><i class="bi ${srcIcon} me-1"></i>${v.source}</span>
+                                <span class="badge ${kb.c} badge-source"><i class="bi ${kb.i} me-1"></i>${kb.l}</span>
                             </div>
                             ${desc ? `<div class="video-desc">${desc}</div>` : ''}
                             <div class="video-meta">
@@ -1555,21 +1599,11 @@
                                 ${v.duration > 0 ? `<span><i class="bi bi-clock me-1"></i>${Math.ceil(v.duration/60)} דק'</span>` : ''}
                             </div>
                         </div>
-                        <div class="d-flex flex-column align-items-end gap-1 video-dl-btn" style="min-width:110px">
-                            <div class="d-flex gap-1 w-100">
-                                <select class="form-select form-select-sm" id="sq_${videos.indexOf(v)}" style="font-size:.7rem;padding:2px 4px;border-radius:6px;width:auto">
-                                    <option value="best">מלא</option>
-                                    <option value="1080">1080p</option>
-                                    <option value="720" selected>720p</option>
-                                    <option value="480">480p</option>
-                                    <option value="360">360p</option>
-                                </select>
-                                <select class="form-select form-select-sm" id="sf_${videos.indexOf(v)}" style="font-size:.7rem;padding:2px 4px;border-radius:6px;width:auto">
-                                    <option value="video">וידאו</option>
-                                    <option value="audio">שמע</option>
-                                </select>
-                            </div>
-                            <button class="btn btn-sm btn-download text-white px-3 w-100" onclick="event.stopPropagation();startDownloadWithOpts('${v.url}','sq_${videos.indexOf(v)}','sf_${videos.indexOf(v)}')" data-bs-toggle="tooltip" title="הורד לדרייב"><i class="bi bi-download me-1"></i>הורד</button>
+                        <div class="d-flex flex-column align-items-end gap-1 video-dl-btn" style="min-width:140px">
+                            <select class="form-select form-select-sm" id="sfmt_${idx}" style="font-size:.72rem;padding:2px 4px;border-radius:6px;width:100%">
+                                ${fmtOptions}
+                            </select>
+                            <button class="btn btn-sm btn-download text-white px-3 w-100" onclick="event.stopPropagation();startDownloadFromSearch('${safeUrl}',${idx})" data-bs-toggle="tooltip" title="הורד לדרייב"><i class="bi bi-download me-1"></i>הורד</button>
                         </div>
                     </div>
                 </div>`;
@@ -1953,7 +1987,7 @@
 
         function clearSearchSuggestions() {
             lastSearchResults = [];
-            document.getElementById('searchResults').innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-search fs-1 d-block mb-2" style="opacity:0.3"></i>חפש סרטונים מ-Dailymotion, Vimeo, הידברות ו-Archive.org</div>';
+            document.getElementById('searchResults').innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-search fs-1 d-block mb-2" style="opacity:0.3"></i>חפש בכל הרשת — YouTube, Dailymotion, Vimeo, הידברות, Archive.org, Rumble, Odysee, Bitchute, Wikimedia, SlideShare</div>';
             showToast('הצעות חיפוש נמחקו', 'success');
         }
         function openSearchResult(url) {
