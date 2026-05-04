@@ -133,14 +133,14 @@ jobs:
           if title and os.environ.get('GH_TOKEN_FOR_AI'):
               try:
                   import urllib.request
-                  prompt = f"""תן סיכום קצר בעברית של 2-3 משפטים על הסרטון הבא, ו-3-5 תגיות בעברית.
-
-  כותרת: {title}
-  ערוץ: {channel}
-  אורך: {duration//60} דקות
-  תיאור: {desc[:500]}
-
-  פורמט: JSON {{"summary":"...","tags":["..."]}}"""
+                  prompt = (
+                      "תן סיכום קצר בעברית של 2-3 משפטים על הסרטון הבא, ו-3-5 תגיות בעברית.\n\n"
+                      f"כותרת: {title}\n"
+                      f"ערוץ: {channel}\n"
+                      f"אורך: {duration//60} דקות\n"
+                      f"תיאור: {desc[:500]}\n\n"
+                      'פורמט: JSON {"summary":"...","tags":["..."]}'
+                  )
                   data = json.dumps({
                       'model': 'gpt-4o-mini',
                       'messages': [{'role': 'user', 'content': prompt}],
