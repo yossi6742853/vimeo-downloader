@@ -28,6 +28,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect YouTube URL
+        id: detect
+        run: |
+          URL="${{ github.event.inputs.url }}"
+          if echo "$URL" | grep -qiE '(youtube\.com|youtu\.be)'; then
+            echo "is_youtube=true" >> $GITHUB_OUTPUT
+            echo "URL is YouTube — will enable WARP + client fallbacks"
+          else
+            echo "is_youtube=false" >> $GITHUB_OUTPUT
+            echo "URL is NOT YouTube — keeping default behavior"
+          fi
+
+      - name: Setup Cloudflare WARP (YouTube only)
+        if: steps.detect.outputs.is_youtube == 'true'
+        uses: fscarmen/warp-on-actions@v1.1
+        with:
+          stack: dual
+
       - name: Install tools
         run: |
           sudo apt-get update -qq
@@ -39,6 +57,8 @@ jobs:
           echo "$HOME/.deno/bin" >> $GITHUB_PATH
 
       - name: Download content
+        env:
+          IS_YOUTUBE: ${{ steps.detect.outputs.is_youtube }}
         run: |
           mkdir -p videos
           URL="${{ github.event.inputs.url }}"
@@ -47,13 +67,61 @@ jobs:
           FORMAT="${{ github.event.inputs.format }}"
           QUALITY="${{ github.event.inputs.quality }}"
 
-          IMPERSONATE='--extractor-args generic:impersonate=chrome'
-          if [ "$FORMAT" = "audio" ]; then
-            yt-dlp $IMPERSONATE --no-overwrites -x --audio-format mp3 -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
-          elif [ "$QUALITY" = "best" ]; then
-            yt-dlp $IMPERSONATE --no-overwrites --merge-output-format mp4 -f "bv*+ba/b" -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+          if [ "$IS_YOUTUBE" = "true" ]; then
+            echo "=== YouTube path: WARP + multi-client fallback ==="
+            echo "IP after WARP:"; curl -s ifconfig.me; echo
+
+            if [ "$QUALITY" = "best" ]; then
+              FMT="bv*+ba/b"
+            else
+              FMT="bv*[height<=${QUALITY}]+ba/b[height<=${QUALITY}]"
+            fi
+
+            if [ "$FORMAT" = "audio" ]; then
+              # Audio extraction with TV/iOS/Android fallback
+              for CLIENT in tv ios android; do
+                echo "--- audio attempt: client=$CLIENT ---"
+                yt-dlp --extractor-args "youtube:player_client=$CLIENT" \
+                  --no-overwrites -x --audio-format mp3 \
+                  -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 \
+                  && [ -n "$(ls -A videos/ 2>/dev/null)" ] && echo "SUCCESS via $CLIENT" && break || true
+              done
+            else
+              # Video — try default first (highest quality), then TV, iOS, Android
+              echo "--- video attempt: default clients ---"
+              yt-dlp --no-overwrites --merge-output-format mp4 -f "$FMT" \
+                -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 \
+                && [ -n "$(ls -A videos/ 2>/dev/null)" ] && echo "SUCCESS via default" \
+                || true
+
+              if [ -z "$(ls -A videos/ 2>/dev/null)" ]; then
+                for CLIENT in tv ios android; do
+                  echo "--- video attempt: client=$CLIENT ---"
+                  if [ "$CLIENT" = "android" ]; then
+                    # Android client is limited; drop quality filter to maximize success
+                    yt-dlp --extractor-args "youtube:player_client=android" \
+                      --no-overwrites \
+                      -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 \
+                      && [ -n "$(ls -A videos/ 2>/dev/null)" ] && echo "SUCCESS via android" && break || true
+                  else
+                    yt-dlp --extractor-args "youtube:player_client=$CLIENT" \
+                      --no-overwrites --merge-output-format mp4 -f "$FMT" \
+                      -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 \
+                      && [ -n "$(ls -A videos/ 2>/dev/null)" ] && echo "SUCCESS via $CLIENT" && break || true
+                  fi
+                done
+              fi
+            fi
           else
-            yt-dlp $IMPERSONATE --no-overwrites --merge-output-format mp4 -f "bv*[height<=${QUALITY}]+ba/b[height<=${QUALITY}]" -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+            echo "=== Generic path (impersonate=chrome) ==="
+            IMPERSONATE='--extractor-args generic:impersonate=chrome'
+            if [ "$FORMAT" = "audio" ]; then
+              yt-dlp $IMPERSONATE --no-overwrites -x --audio-format mp3 -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+            elif [ "$QUALITY" = "best" ]; then
+              yt-dlp $IMPERSONATE --no-overwrites --merge-output-format mp4 -f "bv*+ba/b" -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+            else
+              yt-dlp $IMPERSONATE --no-overwrites --merge-output-format mp4 -f "bv*[height<=${QUALITY}]+ba/b[height<=${QUALITY}]" -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+            fi
           fi
 
           # If no files from yt-dlp, try extracting video from page with Playwright
