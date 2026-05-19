@@ -1,0 +1,246 @@
+name: Download to Drive
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Video URL to download'
+        required: true
+      format:
+        description: 'video or audio'
+        required: false
+        default: 'video'
+      quality:
+        description: '360/480/720/1080/1440/2160/best'
+        required: false
+        default: 'best'
+      download_to_pc:
+        description: 'true/false - also expose for PC download'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect YouTube URL
+        id: detect
+        run: |
+          URL="${{ github.event.inputs.url }}"
+          if echo "$URL" | grep -qiE '(youtube\.com|youtu\.be)'; then
+            echo "is_youtube=true" >> $GITHUB_OUTPUT
+            echo "URL is YouTube — will enable WARP + client fallbacks"
+          else
+            echo "is_youtube=false" >> $GITHUB_OUTPUT
+            echo "URL is NOT YouTube — keeping default behavior"
+          fi
+
+      - name: Setup Cloudflare WARP (YouTube only)
+        if: steps.detect.outputs.is_youtube == 'true'
+        uses: fscarmen/warp-on-actions@v1.1
+        with:
+          stack: dual
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version | head -1
+          pip install -U yt-dlp playwright curl_cffi
+          playwright install chromium
+          curl -fsSL https://deno.land/install.sh | sh
+          echo "$HOME/.deno/bin" >> $GITHUB_PATH
+
+      - name: Download content
+        env:
+          IS_YOUTUBE: ${{ steps.detect.outputs.is_youtube }}
+        run: |
+          mkdir -p videos
+          URL="${{ github.event.inputs.url }}"
+          echo "Downloading: $URL"
+
+          FORMAT="${{ github.event.inputs.format }}"
+          QUALITY="${{ github.event.inputs.quality }}"
+
+          if [ "$IS_YOUTUBE" = "true" ]; then
+            echo "=== YouTube path: WARP + multi-client fallback ==="
+            echo "IP after WARP:"; curl -s ifconfig.me; echo
+
+            if [ "$QUALITY" = "best" ]; then
+              FMT="bv*+ba/b"
+            else
+              FMT="bv*[height<=${QUALITY}]+ba/b[height<=${QUALITY}]"
+            fi
+
+            if [ "$FORMAT" = "audio" ]; then
+              # 2026 anti-bot: install EJS challenge solver via deno
+              echo "--- installing EJS solver ---"
+              yt-dlp --remote-components ejs:github -x --skip-download "$URL" 2>&1 | tail -5 || true
+              # Audio extraction with multiple clients + EJS solver
+              for CLIENT in web web_safari mweb android android_vr ios tv; do
+                echo "--- audio attempt: client=$CLIENT ---"
+                yt-dlp --extractor-args "youtube:player_client=$CLIENT" \
+                  --remote-components ejs:github \
+                  --no-overwrites -x --audio-format mp3 \
+                  -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 \
+                  && [ -n "$(ls -A videos/ 2>/dev/null)" ] && echo "SUCCESS via $CLIENT" && break || true
+              done
+            else
+              # Video — try default first (highest quality), then TV, iOS, Android
+              echo "--- video attempt: default clients ---"
+              yt-dlp --no-overwrites --merge-output-format mp4 -f "$FMT" \
+                -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 \
+                && [ -n "$(ls -A videos/ 2>/dev/null)" ] && echo "SUCCESS via default" \
+                || true
+
+              if [ -z "$(ls -A videos/ 2>/dev/null)" ]; then
+                for CLIENT in tv ios android; do
+                  echo "--- video attempt: client=$CLIENT ---"
+                  if [ "$CLIENT" = "android" ]; then
+                    # Android client is limited; drop quality filter to maximize success
+                    yt-dlp --extractor-args "youtube:player_client=android" \
+                      --no-overwrites \
+                      -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 \
+                      && [ -n "$(ls -A videos/ 2>/dev/null)" ] && echo "SUCCESS via android" && break || true
+                  else
+                    yt-dlp --extractor-args "youtube:player_client=$CLIENT" \
+                      --no-overwrites --merge-output-format mp4 -f "$FMT" \
+                      -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 \
+                      && [ -n "$(ls -A videos/ 2>/dev/null)" ] && echo "SUCCESS via $CLIENT" && break || true
+                  fi
+                done
+              fi
+            fi
+          else
+            echo "=== Generic path (impersonate=chrome) ==="
+            IMPERSONATE='--extractor-args generic:impersonate=chrome'
+            if [ "$FORMAT" = "audio" ]; then
+              yt-dlp $IMPERSONATE --no-overwrites -x --audio-format mp3 -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+            elif [ "$QUALITY" = "best" ]; then
+              yt-dlp $IMPERSONATE --no-overwrites --merge-output-format mp4 -f "bv*+ba/b" -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+            else
+              yt-dlp $IMPERSONATE --no-overwrites --merge-output-format mp4 -f "bv*[height<=${QUALITY}]+ba/b[height<=${QUALITY}]" -o "videos/%(title)s.%(ext)s" "$URL" 2>&1 || true
+            fi
+          fi
+
+          # If no files from yt-dlp, try extracting video from page with Playwright
+          if [ -z "$(ls -A videos/ 2>/dev/null)" ]; then
+            echo "yt-dlp failed, trying Playwright to find videos in page..."
+            python3 playwright_extract.py "$URL" 2>&1 || true
+          fi
+
+          # If still no files, try direct download (images, docs, presentations, etc)
+          if [ -z "$(ls -A videos/ 2>/dev/null)" ]; then
+            echo "Trying direct download..."
+            FILENAME=$(basename "$URL" | head -c 200)
+            # Clean filename
+            FILENAME=$(echo "$FILENAME" | sed 's/[?#].*//')
+            [ -z "$FILENAME" ] && FILENAME="download"
+            curl -L -o "videos/$FILENAME" "$URL" --max-time 300 -H "User-Agent: Mozilla/5.0" 2>&1 || true
+          fi
+
+          echo "=== Files ==="
+          ls -lh videos/ || echo "No files"
+
+      - name: Upload to Google Drive
+        env:
+          CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          DOWNLOAD_TO_PC: ${{ github.event.inputs.download_to_pc }}
+          SOURCE_URL: ${{ github.event.inputs.url }}
+        run: |
+          python3 << 'PYEOF'
+          import requests, json, os, glob, mimetypes, time
+
+          token_resp = requests.post("https://oauth2.googleapis.com/token", data={
+              "client_id": os.environ["CLIENT_ID"],
+              "client_secret": os.environ["CLIENT_SECRET"],
+              "refresh_token": os.environ["REFRESH_TOKEN"],
+              "grant_type": "refresh_token"
+          })
+          token = token_resp.json()["access_token"]
+          headers = {"Authorization": f"Bearer {token}"}
+
+          r = requests.get("https://www.googleapis.com/drive/v3/files",
+              params={"q": "name='סרטונים שהורדו' and mimeType='application/vnd.google-apps.folder' and trashed=false", "fields": "files(id)"},
+              headers=headers)
+          files = r.json().get("files", [])
+          folder_id = files[0]["id"] if files else requests.post("https://www.googleapis.com/drive/v3/files",
+              headers={**headers, "Content-Type": "application/json"},
+              json={"name": "סרטונים שהורדו", "mimeType": "application/vnd.google-apps.folder"}).json()["id"]
+
+          to_pc = os.environ.get("DOWNLOAD_TO_PC", "false").lower() == "true"
+          source_url = os.environ.get("SOURCE_URL", "")
+          uploaded = []
+
+          for fpath in glob.glob("videos/*"):
+              fname = os.path.basename(fpath)
+              size = os.path.getsize(fpath)
+              if size < 1000:
+                  print(f"Skipping tiny file: {fname} ({size} bytes)")
+                  continue
+              print(f"Uploading: {fname} ({size/1024/1024:.1f} MB)")
+              mime = mimetypes.guess_type(fname)[0] or "application/octet-stream"
+              r = requests.post("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,size,mimeType",
+                  headers={**headers, "Content-Type": "application/json"},
+                  json={"name": fname, "parents": [folder_id]})
+              if r.status_code != 200:
+                  print(f"Init failed: {r.status_code}")
+                  continue
+              with open(fpath, "rb") as f:
+                  r2 = requests.put(r.headers["Location"], data=f, headers={"Content-Type": mime})
+              if r2.status_code != 200:
+                  print(f"Upload FAILED: {r2.status_code}")
+                  continue
+              info = r2.json()
+              fid = info.get("id")
+              print(f"SUCCESS: id={fid}")
+              if to_pc and fid:
+                  pr = requests.post(f"https://www.googleapis.com/drive/v3/files/{fid}/permissions",
+                      headers={**headers, "Content-Type": "application/json"},
+                      json={"role": "reader", "type": "anyone"})
+                  print(f"Permission: {pr.status_code}")
+              uploaded.append({
+                  "id": fid, "name": fname, "size": size, "mimeType": mime,
+                  "url": source_url, "downloadToPc": to_pc, "time": int(time.time()*1000)
+              })
+
+          os.makedirs("docs", exist_ok=True)
+          path = "docs/last_downloads.json"
+          history = []
+          if os.path.exists(path):
+              try:
+                  with open(path, encoding="utf-8") as f: history = json.load(f)
+              except: history = []
+          history = uploaded + (history if isinstance(history, list) else [])
+          history = history[:50]
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(history, f, ensure_ascii=False, indent=1)
+          print(f"Recorded {len(uploaded)} downloads")
+          PYEOF
+
+      - name: Commit record
+        if: always()
+        run: |
+          set +e
+          git config user.name "VideoGrab Bot"
+          git config user.email "bot@videograb.local"
+          ls -la docs/last_downloads.json 2>&1 || echo "No file"
+          git add docs/last_downloads.json
+          git status --short
+          if ! git diff --staged --quiet; then
+            git commit -m "Record download $(date +%H%M%S)"
+            for i in 1 2 3; do
+              git pull --rebase origin master
+              git push && break
+              sleep 2
+            done
+          else
+            echo "Nothing to commit"
+          fi

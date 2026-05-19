@@ -1,0 +1,164 @@
+name: Web Video Search - Find videos on ANY site
+
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'מה לחפש (בעברית או באנגלית)'
+        required: true
+      max_results:
+        description: 'כמה תוצאות מקסימום'
+        required: false
+        default: '30'
+
+permissions:
+  contents: write
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install deps
+        run: |
+          pip install -U yt-dlp requests beautifulsoup4
+          sudo apt-get install -y jq -qq
+
+      - name: Search the web for videos
+        env:
+          QUERY: ${{ github.event.inputs.query }}
+          MAX: ${{ github.event.inputs.max_results }}
+        run: |
+          python3 << 'PY'
+          import os, re, json, time, urllib.parse
+          import requests
+          from bs4 import BeautifulSoup
+
+          QUERY = os.environ['QUERY']
+          MAX = int(os.environ.get('MAX') or 30)
+          UA = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'}
+
+          all_urls = []
+
+          def add(url, title='', source=''):
+              if not url or not url.startswith('http'): return
+              if any(b in url.lower() for b in ['duckduckgo.com/y.js', 'duckduckgo.com/l/?', 'google.com/search', 'bing.com/aclick', 'r/']):
+                  # decode redirect
+                  m = re.search(r'[?&](?:uddg|url|u|q)=([^&]+)', url)
+                  if m:
+                      url = urllib.parse.unquote(m.group(1))
+              all_urls.append({'url': url, 'title': title.strip()[:200], 'source': source})
+
+          # --- 1. DuckDuckGo HTML ---
+          try:
+              r = requests.get('https://html.duckduckgo.com/html/',
+                               params={'q': QUERY + ' video'},
+                               headers=UA, timeout=15)
+              soup = BeautifulSoup(r.text, 'html.parser')
+              for a in soup.select('a.result__a'):
+                  add(a.get('href',''), a.get_text(), 'duckduckgo')
+              print(f'DuckDuckGo: {len(all_urls)} so far')
+          except Exception as e:
+              print(f'DDG failed: {e}')
+
+          # --- 2. Bing ---
+          try:
+              r = requests.get('https://www.bing.com/search',
+                               params={'q': QUERY + ' video'},
+                               headers=UA, timeout=15)
+              soup = BeautifulSoup(r.text, 'html.parser')
+              for h2 in soup.select('li.b_algo h2 a'):
+                  add(h2.get('href',''), h2.get_text(), 'bing')
+              print(f'After Bing: {len(all_urls)}')
+          except Exception as e:
+              print(f'Bing failed: {e}')
+
+          # --- 3. Yandex Video ---
+          try:
+              r = requests.get('https://yandex.com/video/search',
+                               params={'text': QUERY},
+                               headers=UA, timeout=15)
+              for m in re.finditer(r'"url":"([^"]+)","title":"([^"]+)"', r.text):
+                  add(m.group(1), m.group(2), 'yandex')
+              print(f'After Yandex: {len(all_urls)}')
+          except Exception as e:
+              print(f'Yandex failed: {e}')
+
+          # --- 4. YouTube direct search ---
+          try:
+              r = requests.get('https://www.youtube.com/results',
+                               params={'search_query': QUERY},
+                               headers=UA, timeout=15)
+              for m in re.finditer(r'"videoId":"([^"]{11})"[^}]*?"title":\{"runs":\[\{"text":"([^"]+)"', r.text):
+                  vid, title = m.group(1), m.group(2)
+                  add(f'https://www.youtube.com/watch?v={vid}', title, 'youtube')
+              print(f'After YouTube: {len(all_urls)}')
+          except Exception as e:
+              print(f'YouTube failed: {e}')
+
+          # Dedupe by URL
+          seen = set()
+          unique = []
+          for u in all_urls:
+              if u['url'] in seen: continue
+              seen.add(u['url'])
+              unique.append(u)
+          print(f'Unique URLs: {len(unique)}')
+
+          # --- 5. Validate each URL with yt-dlp (it returns metadata only) ---
+          import subprocess
+          videos = []
+          for i, item in enumerate(unique[:MAX*3]):
+              if len(videos) >= MAX: break
+              url = item['url']
+              try:
+                  proc = subprocess.run(
+                      ['yt-dlp', '--no-warnings', '--skip-download', '--no-playlist',
+                       '--quiet', '--print', '%(title)s|||%(duration)s|||%(uploader)s|||%(thumbnail)s',
+                       '--socket-timeout', '8', '--retries', '0', url],
+                      capture_output=True, text=True, timeout=15)
+                  if proc.returncode == 0 and proc.stdout.strip():
+                      parts = proc.stdout.strip().split('|||')
+                      title = parts[0] if parts else item['title']
+                      duration = parts[1] if len(parts) > 1 else ''
+                      uploader = parts[2] if len(parts) > 2 else ''
+                      thumb = parts[3] if len(parts) > 3 else ''
+                      videos.append({
+                          'url': url,
+                          'title': title or item['title'],
+                          'duration': duration,
+                          'uploader': uploader,
+                          'thumbnail': thumb,
+                          'source': item['source'],
+                      })
+                      print(f'[{len(videos)}/{MAX}] {title[:60]}')
+              except subprocess.TimeoutExpired:
+                  pass
+              except Exception:
+                  pass
+
+          output = {
+              'query': QUERY,
+              'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
+              'count': len(videos),
+              'results': videos,
+          }
+          with open('search_results.json', 'w', encoding='utf-8') as f:
+              json.dump(output, f, ensure_ascii=False, indent=2)
+          print(f'\nFINAL: {len(videos)} video results')
+          PY
+
+      - name: Commit results to repo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "Search Bot"
+          git add search_results.json
+          git commit -m "Search results: ${{ github.event.inputs.query }}" || echo "no changes"
+          git push || echo "push failed"
