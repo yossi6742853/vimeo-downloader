@@ -3,18 +3,6 @@
   "label": "רשת 13 LIVE",
   "chunks": [
     {
-      "name": "reshet13_1784277747.ts",
-      "url": "live-chunks/reshet13/reshet13_1784277747.ts"
-    },
-    {
-      "name": "reshet13_1784277751.ts",
-      "url": "live-chunks/reshet13/reshet13_1784277751.ts"
-    },
-    {
-      "name": "reshet13_1784277755.ts",
-      "url": "live-chunks/reshet13/reshet13_1784277755.ts"
-    },
-    {
       "name": "reshet13_1784277762.ts",
       "url": "live-chunks/reshet13/reshet13_1784277762.ts"
     },
@@ -133,6 +121,18 @@
     {
       "name": "reshet13_1784277943.ts",
       "url": "live-chunks/reshet13/reshet13_1784277943.ts"
+    },
+    {
+      "name": "reshet13_1784277955.ts",
+      "url": "live-chunks/reshet13/reshet13_1784277955.ts"
+    },
+    {
+      "name": "reshet13_1784277965.ts",
+      "url": "live-chunks/reshet13/reshet13_1784277965.ts"
+    },
+    {
+      "name": "reshet13_1784277975.ts",
+      "url": "live-chunks/reshet13/reshet13_1784277975.ts"
     }
   ]
 }
