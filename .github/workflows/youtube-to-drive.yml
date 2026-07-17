@@ -1,0 +1,269 @@
+name: YouTube to Drive
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'YouTube URL'
+        required: true
+      quality:
+        description: '360/480/720/1080/1440/2160/best'
+        required: false
+        default: 'best'
+      download_to_pc:
+        description: 'true/false - also expose for PC download'
+        required: false
+        default: 'false'
+      drive_folder:
+        description: 'Drive folder name (created if missing)'
+        required: false
+        default: 'סרטונים שהורדו'
+
+permissions:
+  contents: write
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Cloudflare WARP
+        uses: fscarmen/warp-on-actions@v1.1
+        with:
+          stack: dual
+
+      - name: Install yt-dlp + ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version | head -1
+          pip install -U yt-dlp
+          curl -fsSL https://deno.land/install.sh | sh
+          echo "$HOME/.deno/bin" >> $GITHUB_PATH
+
+      - name: Download YouTube video
+        run: |
+          mkdir -p videos
+          URL="${{ github.event.inputs.url }}"
+          QUALITY="${{ github.event.inputs.quality }}"
+          [ -z "$QUALITY" ] && QUALITY="best"
+          echo "Downloading: $URL (quality: $QUALITY)"
+          echo "IP before WARP:"
+          curl -s ifconfig.me
+          echo ""
+
+          if [ "$QUALITY" = "best" ]; then
+            FMT="bv*+ba/b"
+          else
+            FMT="bv*[height<=${QUALITY}]+ba/b[height<=${QUALITY}]"
+          fi
+
+          # Try multiple methods in order — prioritize HIGH-QUALITY clients first
+          # Method 1: Default (web+tv clients — best formats up to 4K)
+          echo "=== Method 1: Default (high quality) ==="
+          yt-dlp \
+            --no-overwrites \
+            --merge-output-format mp4 \
+            -f "$FMT" \
+            -o "videos/%(title)s.%(ext)s" \
+            "$URL" 2>&1 && echo "SUCCESS" && exit 0 || true
+
+          # Method 2: TV client (high quality, often bypasses bot detection)
+          echo "=== Method 2: TV client ==="
+          yt-dlp \
+            --extractor-args "youtube:player_client=tv" \
+            --no-overwrites \
+            --merge-output-format mp4 \
+            -f "$FMT" \
+            -o "videos/%(title)s.%(ext)s" \
+            "$URL" 2>&1 && echo "SUCCESS" && exit 0 || true
+
+          # Method 3: iOS client (medium quality)
+          echo "=== Method 3: iOS client ==="
+          yt-dlp \
+            --extractor-args "youtube:player_client=ios" \
+            --no-overwrites \
+            --merge-output-format mp4 \
+            -f "$FMT" \
+            -o "videos/%(title)s.%(ext)s" \
+            "$URL" 2>&1 && echo "SUCCESS" && exit 0 || true
+
+          # Method 4: Android (last resort — limited to 720p typically)
+          echo "=== Method 4: Android (fallback) ==="
+          yt-dlp \
+            --extractor-args "youtube:player_client=android" \
+            --no-overwrites \
+            -o "videos/%(title)s.%(ext)s" \
+            "$URL" 2>&1 || true
+
+          echo "=== Files ==="
+          ls -lh videos/ || echo "No files"
+
+      - name: AI Summary + tags
+        if: always()
+        env:
+          GH_TOKEN_FOR_AI: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_URL: ${{ github.event.inputs.url }}
+        run: |
+          python3 << 'PYEOF'
+          import os, json, subprocess, glob
+          # Get video metadata via yt-dlp (no actual download)
+          url = os.environ.get('SOURCE_URL', '')
+          if not url: exit()
+          try:
+              r = subprocess.run(['yt-dlp', '--dump-json', '--no-playlist', '--skip-download', url],
+                  capture_output=True, text=True, timeout=30, encoding='utf-8', errors='ignore')
+              meta = json.loads(r.stdout.strip().split('\n')[0]) if r.stdout else {}
+          except Exception as e:
+              print(f'meta fetch failed: {e}')
+              meta = {}
+          title = meta.get('title', '')
+          desc = (meta.get('description') or '')[:3000]
+          duration = meta.get('duration', 0)
+          channel = meta.get('uploader') or meta.get('channel', '')
+          tags = meta.get('tags') or []
+
+          summary_data = {
+              'title': title,
+              'channel': channel,
+              'duration_seconds': duration,
+              'tags': tags[:20],
+              'description': desc,
+              'source_url': url,
+          }
+
+          # Try AI summary using GitHub Models (free with built-in token)
+          if title and os.environ.get('GH_TOKEN_FOR_AI'):
+              try:
+                  import urllib.request
+                  prompt = (
+                      "תן סיכום קצר בעברית של 2-3 משפטים על הסרטון הבא, ו-3-5 תגיות בעברית.\n\n"
+                      f"כותרת: {title}\n"
+                      f"ערוץ: {channel}\n"
+                      f"אורך: {duration//60} דקות\n"
+                      f"תיאור: {desc[:500]}\n\n"
+                      'פורמט: JSON {"summary":"...","tags":["..."]}'
+                  )
+                  data = json.dumps({
+                      'model': 'gpt-4o-mini',
+                      'messages': [{'role': 'user', 'content': prompt}],
+                      'max_tokens': 300,
+                      'temperature': 0.3,
+                      'response_format': {'type': 'json_object'},
+                  }).encode()
+                  req = urllib.request.Request(
+                      'https://models.inference.ai.azure.com/chat/completions',
+                      data=data, method='POST',
+                      headers={'Authorization': f"Bearer {os.environ['GH_TOKEN_FOR_AI']}", 'Content-Type': 'application/json'}
+                  )
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      result = json.load(resp)
+                      ai_text = result['choices'][0]['message']['content']
+                      ai_data = json.loads(ai_text)
+                      summary_data['ai_summary'] = ai_data.get('summary', '')
+                      summary_data['ai_tags'] = ai_data.get('tags', [])
+                      print(f"AI summary: {ai_data.get('summary')[:100]}")
+              except Exception as e:
+                  print(f'AI summary failed: {e}')
+
+          # Save to .json sidecar next to each video
+          for fp in glob.glob('videos/*'):
+              if not fp.endswith(('.mp4','.mkv','.webm','.mov')): continue
+              with open(fp + '.json', 'w', encoding='utf-8') as f:
+                  json.dump(summary_data, f, ensure_ascii=False, indent=1)
+              print(f'Sidecar saved: {fp}.json')
+          PYEOF
+
+      - name: Upload to Google Drive
+        if: always()
+        env:
+          CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          DOWNLOAD_TO_PC: ${{ github.event.inputs.download_to_pc }}
+          SOURCE_URL: ${{ github.event.inputs.url }}
+          DRIVE_FOLDER: ${{ github.event.inputs.drive_folder }}
+        run: |
+          python3 << 'PYEOF'
+          import requests, os, glob, json, mimetypes, time
+          token = requests.post('https://oauth2.googleapis.com/token', data={
+              'client_id': os.environ['CLIENT_ID'], 'client_secret': os.environ['CLIENT_SECRET'],
+              'refresh_token': os.environ['REFRESH_TOKEN'], 'grant_type': 'refresh_token'
+          }).json()['access_token']
+          headers = {'Authorization': f'Bearer {token}'}
+          folder_name = os.environ.get('DRIVE_FOLDER') or 'סרטונים שהורדו'
+          r = requests.get('https://www.googleapis.com/drive/v3/files',
+              params={'q': f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false", 'fields': 'files(id)'},
+              headers=headers)
+          files = r.json().get('files', [])
+          fid = files[0]['id'] if files else requests.post('https://www.googleapis.com/drive/v3/files',
+              headers={**headers, 'Content-Type': 'application/json'},
+              json={'name': folder_name, 'mimeType': 'application/vnd.google-apps.folder'}).json()['id']
+
+          to_pc = os.environ.get('DOWNLOAD_TO_PC', 'false').lower() == 'true'
+          source_url = os.environ.get('SOURCE_URL', '')
+          uploaded = []
+
+          for fp in glob.glob('videos/*'):
+              sz = os.path.getsize(fp)
+              if sz < 1000: continue
+              fn = os.path.basename(fp)
+              print(f'Uploading: {fn} ({sz/1024/1024:.1f} MB)')
+              # Skip the JSON sidecar in the main loop - upload separately after
+              if fp.endswith('.json'): continue
+              mime = mimetypes.guess_type(fn)[0] or 'video/mp4'
+              r = requests.post('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,size,mimeType',
+                  headers={**headers, 'Content-Type': 'application/json'}, json={'name': fn, 'parents': [fid]})
+              if r.status_code != 200:
+                  print(f'Init failed: {r.status_code}'); continue
+              with open(fp, 'rb') as f:
+                  r2 = requests.put(r.headers['Location'], data=f, headers={'Content-Type': mime})
+              if r2.status_code != 200:
+                  print(f'Upload FAILED: {r2.status_code}'); continue
+              info = r2.json()
+              file_id = info.get('id')
+              print(f'SUCCESS: id={file_id}')
+              if to_pc and file_id:
+                  pr = requests.post(f'https://www.googleapis.com/drive/v3/files/{file_id}/permissions',
+                      headers={**headers, 'Content-Type': 'application/json'},
+                      json={'role': 'reader', 'type': 'anyone'})
+                  print(f'Permission: {pr.status_code}')
+              uploaded.append({
+                  'id': file_id, 'name': fn, 'size': sz, 'mimeType': mime,
+                  'url': source_url, 'downloadToPc': to_pc, 'time': int(time.time()*1000)
+              })
+
+          os.makedirs('docs', exist_ok=True)
+          path = 'docs/last_downloads.json'
+          history = []
+          if os.path.exists(path):
+              try:
+                  with open(path, encoding='utf-8') as f: history = json.load(f)
+              except: history = []
+          history = uploaded + (history if isinstance(history, list) else [])
+          history = history[:50]
+          with open(path, 'w', encoding='utf-8') as f:
+              json.dump(history, f, ensure_ascii=False, indent=1)
+          print(f'Recorded {len(uploaded)} downloads')
+          PYEOF
+
+      - name: Commit record
+        if: always()
+        run: |
+          set +e
+          git config user.name "VideoGrab Bot"
+          git config user.email "bot@videograb.local"
+          ls -la docs/last_downloads.json 2>&1 || echo "No file"
+          git add docs/last_downloads.json
+          git status --short
+          if ! git diff --staged --quiet; then
+            git commit -m "Record YT download $(date +%H%M%S)"
+            for i in 1 2 3; do
+              git pull --rebase origin master
+              git push && break
+              sleep 2
+            done
+          else
+            echo "Nothing to commit"
+          fi

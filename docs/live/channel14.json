@@ -1,0 +1,138 @@
+{
+  "channel": "channel14",
+  "label": "ערוץ 14 LIVE",
+  "chunks": [
+    {
+      "name": "channel14_1784266562.ts",
+      "url": "live-chunks/channel14/channel14_1784266562.ts"
+    },
+    {
+      "name": "channel14_1784266575.ts",
+      "url": "live-chunks/channel14/channel14_1784266575.ts"
+    },
+    {
+      "name": "channel14_1784266584.ts",
+      "url": "live-chunks/channel14/channel14_1784266584.ts"
+    },
+    {
+      "name": "channel14_1784266602.ts",
+      "url": "live-chunks/channel14/channel14_1784266602.ts"
+    },
+    {
+      "name": "channel14_1784266613.ts",
+      "url": "live-chunks/channel14/channel14_1784266613.ts"
+    },
+    {
+      "name": "channel14_1784266624.ts",
+      "url": "live-chunks/channel14/channel14_1784266624.ts"
+    },
+    {
+      "name": "channel14_1784266640.ts",
+      "url": "live-chunks/channel14/channel14_1784266640.ts"
+    },
+    {
+      "name": "channel14_1784266651.ts",
+      "url": "live-chunks/channel14/channel14_1784266651.ts"
+    },
+    {
+      "name": "channel14_1784266664.ts",
+      "url": "live-chunks/channel14/channel14_1784266664.ts"
+    },
+    {
+      "name": "channel14_1784266683.ts",
+      "url": "live-chunks/channel14/channel14_1784266683.ts"
+    },
+    {
+      "name": "channel14_1784266695.ts",
+      "url": "live-chunks/channel14/channel14_1784266695.ts"
+    },
+    {
+      "name": "channel14_1784266705.ts",
+      "url": "live-chunks/channel14/channel14_1784266705.ts"
+    },
+    {
+      "name": "channel14_1784266724.ts",
+      "url": "live-chunks/channel14/channel14_1784266724.ts"
+    },
+    {
+      "name": "channel14_1784266735.ts",
+      "url": "live-chunks/channel14/channel14_1784266735.ts"
+    },
+    {
+      "name": "channel14_1784266746.ts",
+      "url": "live-chunks/channel14/channel14_1784266746.ts"
+    },
+    {
+      "name": "channel14_1784266776.ts",
+      "url": "live-chunks/channel14/channel14_1784266776.ts"
+    },
+    {
+      "name": "channel14_1784266787.ts",
+      "url": "live-chunks/channel14/channel14_1784266787.ts"
+    },
+    {
+      "name": "channel14_1784266796.ts",
+      "url": "live-chunks/channel14/channel14_1784266796.ts"
+    },
+    {
+      "name": "channel14_1784266822.ts",
+      "url": "live-chunks/channel14/channel14_1784266822.ts"
+    },
+    {
+      "name": "channel14_1784266831.ts",
+      "url": "live-chunks/channel14/channel14_1784266831.ts"
+    },
+    {
+      "name": "channel14_1784266838.ts",
+      "url": "live-chunks/channel14/channel14_1784266838.ts"
+    },
+    {
+      "name": "channel14_1784266866.ts",
+      "url": "live-chunks/channel14/channel14_1784266866.ts"
+    },
+    {
+      "name": "channel14_1784266874.ts",
+      "url": "live-chunks/channel14/channel14_1784266874.ts"
+    },
+    {
+      "name": "channel14_1784266882.ts",
+      "url": "live-chunks/channel14/channel14_1784266882.ts"
+    },
+    {
+      "name": "channel14_1784266896.ts",
+      "url": "live-chunks/channel14/channel14_1784266896.ts"
+    },
+    {
+      "name": "channel14_1784266905.ts",
+      "url": "live-chunks/channel14/channel14_1784266905.ts"
+    },
+    {
+      "name": "channel14_1784266913.ts",
+      "url": "live-chunks/channel14/channel14_1784266913.ts"
+    },
+    {
+      "name": "channel14_1784266927.ts",
+      "url": "live-chunks/channel14/channel14_1784266927.ts"
+    },
+    {
+      "name": "channel14_1784266935.ts",
+      "url": "live-chunks/channel14/channel14_1784266935.ts"
+    },
+    {
+      "name": "channel14_1784266943.ts",
+      "url": "live-chunks/channel14/channel14_1784266943.ts"
+    },
+    {
+      "name": "channel14_1784266955.ts",
+      "url": "live-chunks/channel14/channel14_1784266955.ts"
+    },
+    {
+      "name": "channel14_1784266963.ts",
+      "url": "live-chunks/channel14/channel14_1784266963.ts"
+    },
+    {
+      "name": "channel14_1784266971.ts",
+      "url": "live-chunks/channel14/channel14_1784266971.ts"
+    }
+  ]
+}

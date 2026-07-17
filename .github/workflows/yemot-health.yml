@@ -1,0 +1,72 @@
+name: Yemot Voice Health Monitor
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # every 15 minutes
+  workflow_dispatch:
+
+permissions: { contents: write }
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: pip install -q requests
+      - name: Check yemot inbox + update status
+        env:
+          YEMOT_USER: ${{ secrets.YEMOT_USER }}
+          YEMOT_PASS: ${{ secrets.YEMOT_PASS }}
+        run: |
+          python3 <<'PY'
+          import os, sys, urllib.parse, urllib.request, json, time
+          API = 'https://www.call2all.co.il/ym/api'
+          # SECURITY 2026-07-09: hardcoded credentials removed; require secrets.
+          USER = os.environ.get('YEMOT_USER') or '0772251404'
+          PASS = os.environ.get('YEMOT_PASS')
+          if not PASS:
+              sys.stderr.write('::error::YEMOT_PASS secret not set on repo. Aborting.\n')
+              sys.exit(1)
+
+          def post(method, params):
+              data = urllib.parse.urlencode(params).encode()
+              req = urllib.request.Request(f'{API}/{method}', data=data)
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  return json.loads(r.read())
+
+          token = post('Login', {'username': USER, 'password': PASS})['token']
+
+          issues = []
+          for ext in ['1', '8']:
+              r = post('GetIVR2Dir', {'token': token, 'path': f'ivr2:/{ext}'})
+              files = r.get('files', []) or []
+              old_wav = []
+              now = time.time()
+              for f in files:
+                  nm = f.get('name', '')
+                  if not nm.endswith('.wav') or nm.startswith('M'): continue
+                  mt = f.get('mtime', '')
+                  try:
+                      t = time.mktime(time.strptime(mt, '%d/%m/%Y %H:%M'))
+                      age_min = (now - t) / 60
+                      if age_min > 15:
+                          old_wav.append(f'{nm}({int(age_min)}m)')
+                  except Exception:
+                      pass
+              if old_wav:
+                  issues.append(f'/{ext}:{len(old_wav)} stuck')
+
+          ts = time.strftime('%H:%M', time.gmtime(time.time() + 3*3600))  # IDT
+          if issues:
+              msg = f'[{ts}] תקלה: {" | ".join(issues)}'
+          else:
+              msg = f'[{ts}] מערכת תקינה - cloud monitor'
+          # Upload to ext 5 status
+          body = json.dumps({'token': token, 'path': 'ivr2:/5/000.tts', 'contents': msg})
+          req = urllib.request.Request(f'{API}/UploadTextFile', data=body.encode(),
+              headers={'Content-Type': 'application/json'})
+          r2 = urllib.request.urlopen(req, timeout=30).read()
+          print('upload:', r2[:200])
+          print('status:', msg)
+          if issues:
+              print(f'::warning::yemot health issues: {issues}')
+          PY

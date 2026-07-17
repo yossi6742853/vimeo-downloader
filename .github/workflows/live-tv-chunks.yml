@@ -1,0 +1,179 @@
+name: Live TV - Continuous Drive chunks (Kan/Reshet/etc.)
+
+# Triggered manually OR every 30 min via cron - each run records ~5 hours
+on:
+  schedule:
+    - cron: '7 */5 * * *'   # every 5 hours
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Channel: kan11, kan-news, reshet13, news13, channel14, walla, ynet, all'
+        required: false
+        default: 'all'
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 320
+    strategy:
+      matrix:
+        channel:
+          - name: kan11
+            url: https://kancdn.medonecdn.net/livehls/oil/kancdn-live/live/kan11/live.livx/playlist.m3u8
+            label: כאן 11 LIVE
+          - name: makan33
+            url: https://kancdn.medonecdn.net/livehls/oil/kancdn-live/live/makan/live.livx/playlist.m3u8
+            label: מכאן 33 LIVE
+          - name: kan-kids
+            url: https://kan23.media.kan.org.il/hls/live/2024691/2024691/master.m3u8
+            label: כאן חינוכית LIVE
+          - name: reshet13
+            url: https://d2xg1g9o5vns8m.cloudfront.net/out/v1/0855d703f7d5436fae6a9c7ce8ca5075/index.m3u8
+            label: רשת 13 LIVE
+          - name: channel14
+            url: https://r.il.cdn-redge.media/livehls/oil/ch14/live/ch14/live.livx/playlist.m3u8
+            label: ערוץ 14 LIVE
+          - name: i24
+            url: https://bcovlive-a.akamaihd.net/d89ede8094c741b7924120b27764153c/eu-central-1/5377161796001/playlist.m3u8
+            label: i24 עברית LIVE
+          - name: hidabroot
+            url: https://cdn.cybercdn.live/HidabrootIL/Live97/playlist.m3u8
+            label: הידברות LIVE
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Cloudflare WARP
+        uses: fscarmen/warp-on-actions@v1.1
+        with: { stack: dual }
+
+      - name: Install
+        run: |
+          sudo apt-get install -y ffmpeg jq -qq
+          pip install -q -U yt-dlp requests
+
+      - name: Record & upload chunks
+        run: |
+          AYALA_PARENT='1URIGfrUFkphmiMifnPPljL1O_fbQrqJF'
+          CLIENT_ID='1072944905499-vm2v2i5dvn0a0d2o4ca36i1vge8cvbn0.apps.googleusercontent.com'
+          CLIENT_SECRET='v6V3fKV_zWU7iw1DrpO1rknX'
+          REFRESH_TOKEN='1//03doYP5sR8165CgYIARAAGAMSNwF-L9Irwt3jH4FHlYkKBcdcEr_DCirl7AWT7Uxf36-gUtqITAWqJx-vLRNyMcDprd91JtFuhLc'
+
+          CHANNEL_NAME='${{ matrix.channel.name }}'
+          CHANNEL_URL='${{ matrix.channel.url }}'
+          CHANNEL_LABEL='${{ matrix.channel.label }}'
+
+          ACCESS=$(curl -sS -X POST 'https://oauth2.googleapis.com/token' \
+            -d "client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&refresh_token=$REFRESH_TOKEN&grant_type=refresh_token" \
+            | python3 -c 'import json,sys;print(json.load(sys.stdin)["access_token"])')
+
+          # Get/create live folder and channel subfolder
+          get_or_create() {
+            local NAME="$1"; local PARENT="$2"
+            local FID=$(curl -sS -G -H "Authorization: Bearer $ACCESS" \
+              --data-urlencode "q=name='$NAME' and mimeType='application/vnd.google-apps.folder' and '$PARENT' in parents and trashed=false" \
+              --data-urlencode "fields=files(id)" \
+              "https://www.googleapis.com/drive/v3/files" \
+              | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d["files"][0]["id"] if d.get("files") else "")')
+            if [ -z "$FID" ]; then
+              META=$(python3 -c "import json,sys;print(json.dumps({'name':sys.argv[1],'mimeType':'application/vnd.google-apps.folder','parents':[sys.argv[2]]}))" "$NAME" "$PARENT")
+              FID=$(curl -sS -X POST -H "Authorization: Bearer $ACCESS" -H "Content-Type: application/json; charset=utf-8" \
+                --data-binary "$META" "https://www.googleapis.com/drive/v3/files" \
+                | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])')
+            fi
+            echo "$FID"
+          }
+
+          LIVE_ROOT=$(get_or_create "שידור חי" "$AYALA_PARENT")
+          CHANNEL_FOLDER=$(get_or_create "$CHANNEL_LABEL" "$LIVE_ROOT")
+          echo "Channel folder: $CHANNEL_FOLDER"
+
+          # CHANNEL_URL is now a direct M3U8 — no need to extract
+          LIVE_M3U8="$CHANNEL_URL"
+          echo "Stream URL: ${LIVE_M3U8:0:80}..."
+
+          mkdir -p chunks
+          CHUNK_SECONDS=10   # 10-second TS chunks (no MP4 processing in Drive)
+          MAX_CHUNKS=1500    # ~4.2 hours
+
+          # Push chunk to GitHub repo (live-chunks branch) - NetFree allows github
+          mkdir -p live-chunks/$CHANNEL_NAME
+          upload_chunk() {
+            local FILE="$1"
+            local NAME=$(basename "$FILE")
+            mv "$FILE" "live-chunks/$CHANNEL_NAME/$NAME"
+            git add "live-chunks/$CHANNEL_NAME/$NAME" 2>/dev/null
+            echo "  staged $NAME"
+          }
+          # Commit & push every few chunks (batch to avoid rate limit)
+          push_batch() {
+            git config user.email "actions@github.com" 2>/dev/null
+            git config user.name "github-actions" 2>/dev/null
+            git diff --cached --quiet && return
+            git commit -m "live-$CHANNEL_NAME: chunks batch" -q
+            for try in 1 2 3; do
+              git pull --rebase origin master -q && break
+              sleep 1
+            done
+            for try in 1 2 3; do
+              git push origin master -q 2>&1 | tail -1 && break
+              sleep 2
+              git pull --rebase origin master -q
+            done
+          }
+
+          update_playlist_json() {
+            # Generate manifest of chunks in repo
+            python3 <<PYEOF
+          import os, json
+          CH = '${{ matrix.channel.name }}'
+          d = f'live-chunks/{CH}'
+          chunks = []
+          if os.path.exists(d):
+            for f in sorted(os.listdir(d)):
+              if f.endswith('.ts'):
+                chunks.append({'name': f, 'url': f'live-chunks/{CH}/{f}'})
+          out = {'channel': CH, 'label': '${{ matrix.channel.label }}', 'chunks': chunks}
+          open(f'docs/live/{CH}.json','w',encoding='utf-8').write(json.dumps(out, ensure_ascii=False, indent=2))
+          PYEOF
+            git add docs/live/${{ matrix.channel.name }}.json 2>/dev/null
+          }
+
+          rotate_old_files() {
+            # Keep latest 30 chunks (5 min), git rm older
+            local CH='${{ matrix.channel.name }}'
+            local DIR="live-chunks/$CH"
+            if [ -d "$DIR" ]; then
+              # List sorted oldest-first, delete all but last 30
+              local OLDS=$(ls -1 "$DIR"/*.ts 2>/dev/null | sort | head -n -30)
+              for F in $OLDS; do
+                git rm -q "$F" 2>/dev/null || rm -f "$F"
+              done
+            fi
+          }
+          export ACCESS
+
+          for I in $(seq 1 $MAX_CHUNKS); do
+            TS=$(date +%s)
+            OUT="chunks/${CHANNEL_NAME}_${TS}.ts"
+            # Record one TS chunk - native HLS format, no MP4 container, no Drive processing
+            timeout $((CHUNK_SECONDS + 15)) ffmpeg -y -hide_banner -loglevel error \
+              -i "$LIVE_M3U8" \
+              -t $CHUNK_SECONDS \
+              -c:v copy -c:a copy \
+              -f mpegts \
+              "$OUT" 2>&1 | tail -3 || true
+            if [ -f "$OUT" ] && [ "$(stat -c%s "$OUT")" -gt 50000 ]; then
+              upload_chunk "$OUT"
+              update_playlist_json
+              if [ $((I % 3)) -eq 0 ]; then rotate_old_files; fi
+              # Batch push every 3 chunks (~30 sec)
+              if [ $((I % 3)) -eq 0 ]; then push_batch; fi
+            else
+              echo "chunk $I failed/empty - retrying in 3s"
+              sleep 3
+            fi
+          done
