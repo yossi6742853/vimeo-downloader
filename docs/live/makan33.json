@@ -3,18 +3,6 @@
   "label": "מכאן 33 LIVE",
   "chunks": [
     {
-      "name": "makan33_1784186978.ts",
-      "url": "live-chunks/makan33/makan33_1784186978.ts"
-    },
-    {
-      "name": "makan33_1784186991.ts",
-      "url": "live-chunks/makan33/makan33_1784186991.ts"
-    },
-    {
-      "name": "makan33_1784187003.ts",
-      "url": "live-chunks/makan33/makan33_1784187003.ts"
-    },
-    {
       "name": "makan33_1784187018.ts",
       "url": "live-chunks/makan33/makan33_1784187018.ts"
     },
@@ -133,6 +121,18 @@
     {
       "name": "makan33_1784259167.ts",
       "url": "live-chunks/makan33/makan33_1784259167.ts"
+    },
+    {
+      "name": "makan33_1784273179.ts",
+      "url": "live-chunks/makan33/makan33_1784273179.ts"
+    },
+    {
+      "name": "makan33_1784273193.ts",
+      "url": "live-chunks/makan33/makan33_1784273193.ts"
+    },
+    {
+      "name": "makan33_1784273214.ts",
+      "url": "live-chunks/makan33/makan33_1784273214.ts"
     }
   ]
 }
