@@ -3,18 +3,6 @@
   "label": "ערוץ 14 LIVE",
   "chunks": [
     {
-      "name": "channel14_1784274013.ts",
-      "url": "live-chunks/channel14/channel14_1784274013.ts"
-    },
-    {
-      "name": "channel14_1784274019.ts",
-      "url": "live-chunks/channel14/channel14_1784274019.ts"
-    },
-    {
-      "name": "channel14_1784274025.ts",
-      "url": "live-chunks/channel14/channel14_1784274025.ts"
-    },
-    {
       "name": "channel14_1784274032.ts",
       "url": "live-chunks/channel14/channel14_1784274032.ts"
     },
@@ -133,6 +121,18 @@
     {
       "name": "channel14_1784274245.ts",
       "url": "live-chunks/channel14/channel14_1784274245.ts"
+    },
+    {
+      "name": "channel14_1784274258.ts",
+      "url": "live-chunks/channel14/channel14_1784274258.ts"
+    },
+    {
+      "name": "channel14_1784274267.ts",
+      "url": "live-chunks/channel14/channel14_1784274267.ts"
+    },
+    {
+      "name": "channel14_1784274275.ts",
+      "url": "live-chunks/channel14/channel14_1784274275.ts"
     }
   ]
 }
